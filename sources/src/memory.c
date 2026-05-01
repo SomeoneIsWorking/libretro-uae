@@ -24,6 +24,12 @@
 #include "events.h"
 #include "newcpu.h"
 #include "autoconf.h"
+
+/* ── Benefactor port trace ────────────────────────────────── */
+static int puae_trace_frame = 0;
+extern bool libretro_frame_end;
+void puae_trace_inc_frame(void) { puae_trace_frame++; }
+/* ─────────────────────────────────────────────────────────── */
 #include "savestate.h"
 #include "ar.h"
 #include "crc32.h"
@@ -4118,6 +4124,11 @@ void memory_put_long(uaecptr addr, uae_u32 v)
 }
 void memory_put_word(uaecptr addr, uae_u32 v)
 {
+	/* Benefactor trace: buffer pointer swap + scroll copper area */
+	if ((addr >= 0x4198 && addr <= 0x41A0) || (addr >= 0x87D4 && addr < 0x87F0)) {
+		fprintf(stderr, "[PUAE_TRACE] frame=%d write16 $%06X = $%04X\n",
+			puae_trace_frame, addr, (uint16_t)v);
+	}
 	addrbank *ab = &get_mem_bank(addr);
 	if (!ab->baseaddr_direct_w) {
 		call_mem_put_func(ab->wput, addr, v);

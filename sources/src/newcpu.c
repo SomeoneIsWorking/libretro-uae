@@ -6881,6 +6881,8 @@ void m68k_go (int may_quit)
 		if (libretro_frame_end)
 		{
 			libretro_frame_end = false;
+			extern void puae_trace_inc_frame(void);
+			puae_trace_inc_frame();
 			return 0;
 		}
 #endif
