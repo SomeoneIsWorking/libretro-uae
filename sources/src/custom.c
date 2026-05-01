@@ -17182,3 +17182,7 @@ static void SET_LINE_CYCLEBASED(int hpos)
 	decide_line(hpos);
 	decide_fetch_safe(hpos);
 }
+
+#ifdef HARNESS_BUILD
+#include "../../src/harness/puae_snap_impl.c"
+#endif
