@@ -10681,7 +10681,9 @@ static bool copper_cant_read(int hpos, uae_u16 alloc)
 static int custom_wput_copper(int hpos, uaecptr pt, uaecptr addr, uae_u32 value, int noget)
 {
 	int v;
-
+	if (addr == 0x100 || addr == 0x101) {
+		fprintf(stderr, "[PUAE_COPPER_BPLCON0] hpos=%d set to $%04X\n", hpos, (uae_u16)value);
+	}
 #ifdef DEBUGGER
 	value = debug_putpeekdma_chipset(0xdff000 + addr, value, MW_MASK_COPPER, 0x08c);
 #endif
