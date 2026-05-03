@@ -15460,6 +15460,13 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	value &= 0xffff;
 	custom_storage[addr >> 1].value = (uae_u16)value;
 	custom_storage[addr >> 1].pc = copper_access ? cop_state.ip | 1 : M68K_GETPC;
+
+	/* ─ PUAE Trace: BPL pointer and palette writes ─ */
+	if ((addr >= 0x0E0 && addr <= 0x0F6) || (addr >= 0x180 && addr <= 0x1BE)) {
+		int src = copper_access ? 1 : 0;
+		fprintf(stderr, "[PUAE_HW_WRITE] DFF%03X=$%04X  source=%s\n",
+			(int)addr, (int)value, src ? "COPPER" : "CPU");
+	}
 #ifdef ACTION_REPLAY
 #ifdef ACTION_REPLAY_COMMON
 	ar_custom[addr + 0]=(uae_u8)(value >> 8);
