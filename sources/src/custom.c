@@ -10481,6 +10481,12 @@ static void COLOR_WRITE(int hpos, uae_u16 v, int num)
 		remembered_color_entry = -1;
 		current_colors.color_regs_aga[colreg] = cval;
 		current_colors.acolors[colreg] = getxcolor(cval);
+#ifdef HARNESS_BUILD
+		if (colreg <= 3) {
+			fprintf(stderr, "[COLOR_REG_AGA] COLOR%02d=$%06X (12bit=%03X) pc=$%06X samecycle=%d hpos=%d vpos=%d\n",
+				colreg, (unsigned)cval, (unsigned)(cval & 0xFFF), (unsigned)m68k_getpc(), samecycle, hpos, vpos);
+		}
+#endif
 
 	} else {
 #endif
@@ -10502,6 +10508,12 @@ static void COLOR_WRITE(int hpos, uae_u16 v, int num)
 		remembered_color_entry = -1;
 		current_colors.color_regs_ecs[num] = v;
 		current_colors.acolors[num] = getxcolor(v);
+#ifdef HARNESS_BUILD
+		if (num <= 3) {
+			fprintf(stderr, "[COLOR_REG_ECS] COLOR%02d=$%04X pc=$%06X samecycle=%d hpos=%d vpos=%d\n",
+				num, (unsigned)v, (unsigned)m68k_getpc(), samecycle, hpos, vpos);
+		}
+#endif
 #ifdef AGA
 	}
 #endif
@@ -15455,6 +15467,15 @@ static uae_u32 REGPARAM2 custom_lget (uaecptr addr)
 }
 static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
+#ifdef HARNESS_BUILD
+	{
+		static int cwput1_call_count = 0;
+		if (cwput1_call_count < 5) {
+			fprintf(stderr, "[CWPUT1_CALLED] call#%d addr=$%08X val=$%04X\n", cwput1_call_count, (unsigned)addr, (unsigned)(value & 0xffff));
+			cwput1_call_count++;
+		}
+	}
+#endif
 	uaecptr oaddr = addr;
 	addr &= 0x1FE;
 	value &= 0xffff;
@@ -15631,6 +15652,12 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	case 0x1A4: case 0x1A6: case 0x1A8: case 0x1AA: case 0x1AC: case 0x1AE:
 	case 0x1B0: case 0x1B2: case 0x1B4: case 0x1B6: case 0x1B8: case 0x1BA:
 	case 0x1BC: case 0x1BE:
+#ifdef HARNESS_BUILD
+		if ((addr & 0x3E) / 2 <= 3) {
+			fprintf(stderr, "[CUSTOM_WPUT_COLOR] COLOR%02d addr=$%03X val=$%04X pc=$%06X aga_mode=%d vpos=%d\n",
+				(addr & 0x3E) / 2, addr, value & 0x8FFF, (unsigned)m68k_getpc(), aga_mode, vpos);
+		}
+#endif
 		COLOR_WRITE(hpos, value & 0x8FFF, (addr & 0x3E) / 2);
 		break;
 	case 0x120: case 0x124: case 0x128: case 0x12C:

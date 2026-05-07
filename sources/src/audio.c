@@ -356,6 +356,9 @@ int sound_available = 0;
 void (*sample_handler) (void);
 static void(*sample_prehandler) (unsigned long best_evtime);
 static void(*extra_sample_prehandler) (unsigned long best_evtime);
+#ifdef HARNESS_BUILD
+static uint16_t s_aud_per_raw[4];  /* raw AUDxPER writes for harness comparison */
+#endif
 
 float sample_evtime;
 float scaled_sample_evtime;
@@ -2741,10 +2744,10 @@ void AUDxPER (int nr, uae_u16 v)
 			events_schedule ();
 		}
 	}
-#if TEST_AUDIO > 0
-	cdp->per_original = v;
-#endif
 	cdp->per = per;
+#ifdef HARNESS_BUILD
+	s_aud_per_raw[nr] = v;
+#endif
 #if DEBUG_AUDIO > 0
 	if (debugchannel (nr))
 		write_log (_T("AUD%dPER: %d %08X\n"), nr, v, M68K_GETPC);
@@ -3046,3 +3049,19 @@ void audio_cda_new_buffer(struct cd_audio_state *cas, uae_s16 *buffer, int lengt
 	if (cas->cda_streamid > 0)
 		audio_activate();
 }
+
+/* ── Harness audio snapshot (HARNESS_BUILD only) ─────────────────────────── */
+#ifdef HARNESS_BUILD
+#include "../../src/harness/puae_state.h"
+
+void puae_audio_snap(AudioChanSnap *dst)
+{
+	for (int n = 0; n < 4; n++) {
+		struct audio_channel_data *cdp = audio_channel + n;
+		dst[n].lc  = (uint32_t)cdp->lc;
+		dst[n].len = (uint16_t)cdp->len;
+		dst[n].per = s_aud_per_raw[n];
+		dst[n].vol = cdp->data.audvol;
+	}
+}
+#endif /* HARNESS_BUILD */
