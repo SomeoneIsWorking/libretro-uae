@@ -4126,8 +4126,20 @@ void memory_put_word(uaecptr addr, uae_u32 v)
 {
 	/* Benefactor trace: buffer pointer swap + scroll copper area */
 	if ((addr >= 0x4198 && addr <= 0x41A0) || (addr >= 0x87D4 && addr < 0x87F0)) {
-		fprintf(stderr, "[PUAE_TRACE] frame=%d write16 $%06X = $%04X\n",
-			puae_trace_frame, addr, (uint16_t)v);
+		char buf[80]; int n = snprintf(buf, sizeof(buf), "[PUAE_TRACE] frame=%d write16 $%06X = $%04X\n",
+			puae_trace_frame, (unsigned)addr, (unsigned)(v & 0xffff)); write(2, buf, n);
+	}
+	/* Benefactor trace: color register writes */
+	if (addr >= 0xDFF180 && addr <= 0xDFF1BE) {
+		static int color_write_count = 0;
+		if (color_write_count < 5) {
+			addrbank *ab2 = &get_mem_bank(addr);
+			char buf[128]; int n = snprintf(buf, sizeof(buf),
+				"[COLOR_WRITE_PATH] addr=$%08X val=$%04X direct_w=%p wput=%p count=%d\n",
+				(unsigned)addr, (unsigned)(v & 0xffff), (void*)ab2->baseaddr_direct_w, (void*)ab2->wput, color_write_count);
+			write(2, buf, n);
+			color_write_count++;
+		}
 	}
 	addrbank *ab = &get_mem_bank(addr);
 	if (!ab->baseaddr_direct_w) {

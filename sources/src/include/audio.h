@@ -71,6 +71,13 @@ extern void audio_cda_volume(struct cd_audio_state *cas, int left, int right);
 extern int sound_cd_volume[2];
 extern int sound_paula_volume[2];
 
+#ifdef HARNESS_BUILD
+/* Forward declaration — AudioChanSnap defined in puae_state.h */
+struct AudioChanSnap;
+typedef struct AudioChanSnap AudioChanSnap;
+void puae_audio_snap(AudioChanSnap *dst);
+#endif
+
 #define AUDIO_CHANNEL_MAX_STREAM_CH 8
 #define AUDIO_CHANNEL_STREAMS 9
 
