@@ -9941,6 +9941,28 @@ static void BLTDPTH (int hpos, uae_u16 v)
 	bltptx = bltdpt;
 	setblitx(hpos, 4);
 	bltdpt = (bltdpt & 0xffff) | ((uae_u32)v << 16);
+#ifdef HARNESS_BUILD
+	{
+		static int s_puae_dpth = 0;
+		uae_u32 dpt24 = (uae_u32)(bltdpt & 0xFFFFFF);
+		if (s_puae_dpth < 1200 &&
+			((dpt24 >= 0x025000 && dpt24 < 0x02B000) ||
+			 (dpt24 >= 0x04F000 && dpt24 < 0x055000) ||
+			 (dpt24 >= 0x069000 && dpt24 < 0x080000))) {
+			char buf[192];
+			int n = snprintf(buf, sizeof(buf),
+				"[PUAE_BLTDPT_H] val=$%04X dpt=$%06X pc=$%06X h=%d v=%d cop=%d\n",
+				(unsigned)(v & 0xFFFF),
+				(unsigned)dpt24,
+				(unsigned)((copper_access ? cop_state.ip : M68K_GETPC) & 0xFFFFFF),
+				hpos,
+				vpos,
+				copper_access ? 1 : 0);
+			write(2, buf, n);
+			s_puae_dpth++;
+		}
+	}
+#endif
 }
 static void BLTDPTL(int hpos, uae_u16 v)
 {
@@ -9957,6 +9979,28 @@ static void BLTDPTL(int hpos, uae_u16 v)
 	bltptx = bltdpt;
 	setblitx(hpos, 4);
 	bltdpt = (bltdpt & ~0xffff) | (v & 0xfffe);
+#ifdef HARNESS_BUILD
+	{
+		static int s_puae_dptl = 0;
+		uae_u32 dpt24 = (uae_u32)(bltdpt & 0xFFFFFF);
+		if (s_puae_dptl < 1200 &&
+			((dpt24 >= 0x025000 && dpt24 < 0x02B000) ||
+			 (dpt24 >= 0x04F000 && dpt24 < 0x055000) ||
+			 (dpt24 >= 0x069000 && dpt24 < 0x080000))) {
+			char buf[192];
+			int n = snprintf(buf, sizeof(buf),
+				"[PUAE_BLTDPT_L] val=$%04X dpt=$%06X pc=$%06X h=%d v=%d cop=%d\n",
+				(unsigned)(v & 0xFFFF),
+				(unsigned)dpt24,
+				(unsigned)((copper_access ? cop_state.ip : M68K_GETPC) & 0xFFFFFF),
+				hpos,
+				vpos,
+				copper_access ? 1 : 0);
+			write(2, buf, n);
+			s_puae_dptl++;
+		}
+	}
+#endif
 }
 
 static void BLTSIZE(int hpos, uae_u16 v)
@@ -9965,12 +10009,23 @@ static void BLTSIZE(int hpos, uae_u16 v)
 	{
 		static int s_puae_blt = 0;
 #ifdef HARNESS_BUILD
-		if (s_puae_blt < 400 && (bltdpt & 0xFFFFFF) >= 0x069000 && (bltdpt & 0xFFFFFF) < 0x076000) {
+		uae_u32 dpt24 = (uae_u32)(bltdpt & 0xFFFFFF);
+		uae_u32 apt24 = (uae_u32)(bltapt & 0xFFFFFF);
+		uae_u32 cpt24 = (uae_u32)(bltcpt & 0xFFFFFF);
+		int dpt_interest =
+			(dpt24 >= 0x025000 && dpt24 < 0x02B000) ||
+			(dpt24 >= 0x04F000 && dpt24 < 0x055000) ||
+			(dpt24 >= 0x069000 && dpt24 < 0x080000);
+		if (s_puae_blt < 800 && dpt_interest) {
 			char buf[128];
-			int n = snprintf(buf, sizeof(buf), "[PUAE_BLTSIZE] BLTSIZE=$%04X dpt=$%06X pc=$%06X\n",
+			int n = snprintf(buf, sizeof(buf), "[PUAE_BLTSIZE] BLTSIZE=$%04X dpt=$%06X apt=$%06X cpt=$%06X pc=$%06X h=%d v=%d\n",
 				(unsigned)(v & 0xFFFF),
-				(unsigned)(bltdpt & 0xFFFFFF),
-				(unsigned)((copper_access ? cop_state.ip : M68K_GETPC) & 0xFFFFFF));
+				(unsigned)dpt24,
+				(unsigned)apt24,
+				(unsigned)cpt24,
+				(unsigned)((copper_access ? cop_state.ip : M68K_GETPC) & 0xFFFFFF),
+				hpos,
+				vpos);
 			write(2, buf, n);
 			s_puae_blt++;
 		}
