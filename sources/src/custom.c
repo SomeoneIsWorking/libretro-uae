@@ -9962,6 +9962,20 @@ static void BLTDPTL(int hpos, uae_u16 v)
 static void BLTSIZE(int hpos, uae_u16 v)
 {
 	maybe_blit(hpos, 0);
+	{
+		static int s_puae_blt = 0;
+#ifdef HARNESS_BUILD
+		if (s_puae_blt < 400 && (bltdpt & 0xFFFFFF) >= 0x069000 && (bltdpt & 0xFFFFFF) < 0x076000) {
+			char buf[128];
+			int n = snprintf(buf, sizeof(buf), "[PUAE_BLTSIZE] BLTSIZE=$%04X dpt=$%06X pc=$%06X\n",
+				(unsigned)(v & 0xFFFF),
+				(unsigned)(bltdpt & 0xFFFFFF),
+				(unsigned)((copper_access ? cop_state.ip : M68K_GETPC) & 0xFFFFFF));
+			write(2, buf, n);
+			s_puae_blt++;
+		}
+#endif
+	}
 	blt_info.vblitsize = v >> 6;
 	blt_info.hblitsize = v & 0x3F;
 	if (!blt_info.vblitsize) {

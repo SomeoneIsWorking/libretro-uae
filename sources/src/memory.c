@@ -4124,10 +4124,29 @@ void memory_put_long(uaecptr addr, uae_u32 v)
 }
 void memory_put_word(uaecptr addr, uae_u32 v)
 {
+	if ((addr >= 0x0042FC && addr < 0x0042FE) ||
+		(addr >= 0x0069F0 && addr < 0x006A81) ||
+		(addr + 1 >= 0x0042FC && addr + 1 < 0x0042FE) ||
+		(addr + 1 >= 0x0069F0 && addr + 1 < 0x006A81)) {
+		static int state_putw_count = 0;
+		if (state_putw_count < 240) {
+			fprintf(stderr, "[PUAE_STATE_MEM16] addr=$%06X val=$%04X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			state_putw_count++;
+		}
+	}
 	/* Benefactor trace: buffer pointer swap + scroll copper area */
 	if ((addr >= 0x4198 && addr <= 0x41A0) || (addr >= 0x87D4 && addr < 0x87F0)) {
 		char buf[80]; int n = snprintf(buf, sizeof(buf), "[PUAE_TRACE] frame=%d write16 $%06X = $%04X\n",
 			puae_trace_frame, (unsigned)addr, (unsigned)(v & 0xffff)); write(2, buf, n);
+	}
+	if (addr == 0x00DFF058) {
+		static int s_puae_blt = 0;
+		if (s_puae_blt < 400) {
+			fprintf(stderr, "[PUAE_BLTSIZE] BLTSIZE=$%04X pc=$%06X\n",
+				(unsigned)(v & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_puae_blt++;
+		}
 	}
 	/* Benefactor trace: color register writes */
 	if (addr >= 0xDFF180 && addr <= 0xDFF1BE) {
@@ -4154,6 +4173,15 @@ void memory_put_word(uaecptr addr, uae_u32 v)
 }
 void memory_put_byte(uaecptr addr, uae_u32 v)
 {
+	if ((addr >= 0x0042FC && addr < 0x0042FE) ||
+		(addr >= 0x0069F0 && addr < 0x006A81)) {
+		static int state_putb_count = 0;
+		if (state_putb_count < 240) {
+			fprintf(stderr, "[PUAE_STATE_MEM8] addr=$%06X val=$%02X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			state_putb_count++;
+		}
+	}
 	addrbank *ab = &get_mem_bank(addr);
 	if (!ab->baseaddr_direct_w) {
 		call_mem_put_func(ab->bput, addr, v);
