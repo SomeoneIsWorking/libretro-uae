@@ -748,11 +748,38 @@ static uae_u32 REGPARAM2 chipmem_bget (uaecptr addr)
 	return v;
 }
 
+static int puae_focus_watch_addr_chip(uaecptr addr)
+{
+	return (addr >= 0x0042FC && addr < 0x004308) ||
+		(addr >= 0x0069F1 && addr < 0x0069FE) ||
+		(addr >= 0x006A27 && addr < 0x006AEA) ||
+		(addr >= 0x07FFA2 && addr < 0x080000);
+}
+
+static int puae_focus_watch_16_chip(uaecptr addr)
+{
+	return puae_focus_watch_addr_chip(addr) || puae_focus_watch_addr_chip(addr + 1);
+}
+
+static int puae_focus_watch_32_chip(uaecptr addr)
+{
+	return puae_focus_watch_addr_chip(addr) || puae_focus_watch_addr_chip(addr + 1) ||
+		puae_focus_watch_addr_chip(addr + 2) || puae_focus_watch_addr_chip(addr + 3);
+}
+
 void REGPARAM2 chipmem_lput (uaecptr addr, uae_u32 l)
 {
 	uae_u32 *m;
 
 	addr &= chipmem_bank.mask;
+	if (puae_focus_watch_32_chip(addr)) {
+		static int s_focus_chip32 = 0;
+		if (s_focus_chip32 < 512) {
+			fprintf(stderr, "[PUAE_FOCUS_CHIP32] addr=$%06X val=$%08X pc=$%06X\n",
+				(unsigned)addr, (unsigned)l, (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_focus_chip32++;
+		}
+	}
 	m = (uae_u32 *)(chipmem_bank.baseaddr + addr);
 	do_put_mem_long (m, l);
 }
@@ -762,6 +789,14 @@ void REGPARAM2 chipmem_wput (uaecptr addr, uae_u32 w)
 	uae_u16 *m;
 
 	addr &= chipmem_bank.mask;
+	if (puae_focus_watch_16_chip(addr)) {
+		static int s_focus_chip16 = 0;
+		if (s_focus_chip16 < 512) {
+			fprintf(stderr, "[PUAE_FOCUS_CHIP16] addr=$%06X val=$%04X pc=$%06X\n",
+				(unsigned)addr, (unsigned)(w & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_focus_chip16++;
+		}
+	}
 	m = (uae_u16 *)(chipmem_bank.baseaddr + addr);
 	do_put_mem_word (m, w);
 }
@@ -769,6 +804,14 @@ void REGPARAM2 chipmem_wput (uaecptr addr, uae_u32 w)
 void REGPARAM2 chipmem_bput (uaecptr addr, uae_u32 b)
 {
 	addr &= chipmem_bank.mask;
+	if (puae_focus_watch_addr_chip(addr)) {
+		static int s_focus_chip8 = 0;
+		if (s_focus_chip8 < 512) {
+			fprintf(stderr, "[PUAE_FOCUS_CHIP8] addr=$%06X val=$%02X pc=$%06X\n",
+				(unsigned)addr, (unsigned)(b & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_focus_chip8++;
+		}
+	}
 	chipmem_bank.baseaddr[addr] = b;
 }
 
@@ -839,6 +882,14 @@ static void REGPARAM2 chipmem_agnus_lput (uaecptr addr, uae_u32 l)
 	addr &= chipmem_full_mask;
 	if (addr >= chipmem_full_size - 3)
 		return;
+	if (puae_focus_watch_32_chip(addr)) {
+		static int s_focus_agnus32 = 0;
+		if (s_focus_agnus32 < 512) {
+			fprintf(stderr, "[PUAE_FOCUS_AGNUS32] addr=$%06X val=$%08X pc=$%06X\n",
+				(unsigned)addr, (unsigned)l, (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_focus_agnus32++;
+		}
+	}
 	m = (uae_u32 *)(chipmem_bank.baseaddr + addr);
 	do_put_mem_long (m, l);
 }
@@ -850,6 +901,14 @@ void REGPARAM2 chipmem_agnus_wput (uaecptr addr, uae_u32 w)
 	addr &= chipmem_full_mask;
 	if (addr >= chipmem_full_size - 1)
 		return;
+	if (puae_focus_watch_16_chip(addr)) {
+		static int s_focus_agnus16 = 0;
+		if (s_focus_agnus16 < 512) {
+			fprintf(stderr, "[PUAE_FOCUS_AGNUS16] addr=$%06X val=$%04X pc=$%06X\n",
+				(unsigned)addr, (unsigned)(w & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_focus_agnus16++;
+		}
+	}
 	m = (uae_u16 *)(chipmem_bank.baseaddr + addr);
 	do_put_mem_word (m, w);
 }
@@ -859,6 +918,14 @@ static void REGPARAM2 chipmem_agnus_bput (uaecptr addr, uae_u32 b)
 	addr &= chipmem_full_mask;
 	if (addr >= chipmem_full_size)
 		return;
+	if (puae_focus_watch_addr_chip(addr)) {
+		static int s_focus_agnus8 = 0;
+		if (s_focus_agnus8 < 512) {
+			fprintf(stderr, "[PUAE_FOCUS_AGNUS8] addr=$%06X val=$%02X pc=$%06X\n",
+				(unsigned)addr, (unsigned)(b & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_focus_agnus8++;
+		}
+	}
 	chipmem_bank.baseaddr[addr] = b;
 }
 
@@ -880,14 +947,38 @@ static uae_u8 *REGPARAM2 chipmem_xlate (uaecptr addr)
 
 STATIC_INLINE void REGPARAM2 chipmem_lput_bigmem (uaecptr addr, uae_u32 v)
 {
+	if (puae_focus_watch_32_chip(addr)) {
+		static int s_focus_bigmem32 = 0;
+		if (s_focus_bigmem32 < 512) {
+			fprintf(stderr, "[PUAE_FOCUS_BIGMEM32] addr=$%06X val=$%08X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)v, (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_focus_bigmem32++;
+		}
+	}
 	put_long (addr, v);
 }
 STATIC_INLINE void REGPARAM2 chipmem_wput_bigmem (uaecptr addr, uae_u32 v)
 {
+	if (puae_focus_watch_16_chip(addr)) {
+		static int s_focus_bigmem16 = 0;
+		if (s_focus_bigmem16 < 512) {
+			fprintf(stderr, "[PUAE_FOCUS_BIGMEM16] addr=$%06X val=$%04X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_focus_bigmem16++;
+		}
+	}
 	put_word (addr, v);
 }
 STATIC_INLINE void REGPARAM2 chipmem_bput_bigmem (uaecptr addr, uae_u32 v)
 {
+	if (puae_focus_watch_addr_chip(addr)) {
+		static int s_focus_bigmem8 = 0;
+		if (s_focus_bigmem8 < 512) {
+			fprintf(stderr, "[PUAE_FOCUS_BIGMEM8] addr=$%06X val=$%02X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_focus_bigmem8++;
+		}
+	}
 	put_byte (addr, v);
 }
 STATIC_INLINE uae_u32 REGPARAM2 chipmem_lget_bigmem (uaecptr addr)
@@ -979,6 +1070,25 @@ uae_u8 *(REGPARAM2 *chipmem_xlate_indirect)(uaecptr);
 
 void chipmem_setindirect(void)
 {
+	static int s_chipmem_mode_log = 0;
+#ifdef DEBUGGER
+	if (!s_chipmem_mode_log) {
+		fprintf(stderr, "[PUAE_CHIPMEM_MODE] debugmem_base=%p debug_limit=%u z3chip=%u chip=%u\n",
+			(void*)debugmem_bank.baseaddr,
+			(unsigned)debugmem_chiplimit,
+			(unsigned)currprefs.z3chipmem.size,
+			(unsigned)currprefs.chipmem.size);
+		s_chipmem_mode_log = 1;
+	}
+#else
+	if (!s_chipmem_mode_log) {
+		fprintf(stderr, "[PUAE_CHIPMEM_MODE] debugmem_base=%p z3chip=%u chip=%u\n",
+			(void*)debugmem_bank.baseaddr,
+			(unsigned)currprefs.z3chipmem.size,
+			(unsigned)currprefs.chipmem.size);
+		s_chipmem_mode_log = 1;
+	}
+#endif
 #ifdef DEBUGGER
 	if (debugmem_bank.baseaddr && debugmem_chiplimit) {
 #else
@@ -4109,8 +4219,62 @@ uae_u32 memory_get_byte(uaecptr addr)
 	}
 }
 
+static int puae_state_watch_addr(uaecptr addr)
+{
+	return (addr >= 0x0042FC && addr < 0x004308) ||
+		(addr >= 0x0069F0 && addr < 0x006AEA) ||
+		(addr >= 0x07FFA2 && addr < 0x080000);
+}
+
+static int puae_focus_watch_addr(uaecptr addr)
+{
+	return (addr >= 0x00419C && addr < 0x0041A2) ||
+		(addr >= 0x0042FC && addr < 0x004308) ||
+		(addr >= 0x0069F1 && addr < 0x0069FE) ||
+		(addr >= 0x006A27 && addr < 0x006AEA) ||
+		(addr >= 0x07FFA2 && addr < 0x080000);
+}
+
+static int puae_state_watch_16(uaecptr addr)
+{
+	return puae_state_watch_addr(addr) || puae_state_watch_addr(addr + 1);
+}
+
+static int puae_state_watch_32(uaecptr addr)
+{
+	return puae_state_watch_addr(addr) || puae_state_watch_addr(addr + 1) ||
+		puae_state_watch_addr(addr + 2) || puae_state_watch_addr(addr + 3);
+}
+
+static int puae_focus_watch_16(uaecptr addr)
+{
+	return puae_focus_watch_addr(addr) || puae_focus_watch_addr(addr + 1);
+}
+
+static int puae_focus_watch_32(uaecptr addr)
+{
+	return puae_focus_watch_addr(addr) || puae_focus_watch_addr(addr + 1) ||
+		puae_focus_watch_addr(addr + 2) || puae_focus_watch_addr(addr + 3);
+}
+
 void memory_put_long(uaecptr addr, uae_u32 v)
 {
+	if (puae_state_watch_32(addr)) {
+		static int state_putl_count = 0;
+		if (state_putl_count < 240) {
+			fprintf(stderr, "[PUAE_STATE_MEM32] addr=$%06X val=$%08X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)v, (unsigned)(M68K_GETPC & 0xFFFFFF));
+			state_putl_count++;
+		}
+	}
+	if (puae_focus_watch_32(addr)) {
+		static int focus_putl_count = 0;
+		if (focus_putl_count < 320) {
+			fprintf(stderr, "[PUAE_FOCUS_MEM32] addr=$%06X val=$%08X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)v, (unsigned)(M68K_GETPC & 0xFFFFFF));
+			focus_putl_count++;
+		}
+	}
 	addrbank *ab = &get_mem_bank(addr);
 	if (!ab->baseaddr_direct_w) {
 		call_mem_put_func(ab->lput, addr, v);
@@ -4124,15 +4288,20 @@ void memory_put_long(uaecptr addr, uae_u32 v)
 }
 void memory_put_word(uaecptr addr, uae_u32 v)
 {
-	if ((addr >= 0x0042FC && addr < 0x0042FE) ||
-		(addr >= 0x0069F0 && addr < 0x006A81) ||
-		(addr + 1 >= 0x0042FC && addr + 1 < 0x0042FE) ||
-		(addr + 1 >= 0x0069F0 && addr + 1 < 0x006A81)) {
+	if (puae_state_watch_16(addr)) {
 		static int state_putw_count = 0;
 		if (state_putw_count < 240) {
 			fprintf(stderr, "[PUAE_STATE_MEM16] addr=$%06X val=$%04X pc=$%06X\n",
 				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
 			state_putw_count++;
+		}
+	}
+	if (puae_focus_watch_16(addr)) {
+		static int focus_putw_count = 0;
+		if (focus_putw_count < 320) {
+			fprintf(stderr, "[PUAE_FOCUS_MEM16] addr=$%06X val=$%04X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			focus_putw_count++;
 		}
 	}
 	/* Benefactor trace: buffer pointer swap + scroll copper area */
@@ -4173,13 +4342,20 @@ void memory_put_word(uaecptr addr, uae_u32 v)
 }
 void memory_put_byte(uaecptr addr, uae_u32 v)
 {
-	if ((addr >= 0x0042FC && addr < 0x0042FE) ||
-		(addr >= 0x0069F0 && addr < 0x006A81)) {
+	if (puae_state_watch_addr(addr)) {
 		static int state_putb_count = 0;
 		if (state_putb_count < 240) {
 			fprintf(stderr, "[PUAE_STATE_MEM8] addr=$%06X val=$%02X pc=$%06X\n",
 				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
 			state_putb_count++;
+		}
+	}
+	if (puae_focus_watch_addr(addr)) {
+		static int focus_putb_count = 0;
+		if (focus_putb_count < 320) {
+			fprintf(stderr, "[PUAE_FOCUS_MEM8] addr=$%06X val=$%02X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			focus_putb_count++;
 		}
 	}
 	addrbank *ab = &get_mem_bank(addr);

@@ -17047,6 +17047,19 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 {
+	uaecptr a = addr & 0xFFFFFF;
+	if ((a >= 0x0042FC && a < 0x004308) ||
+		(a >= 0x0069F1 && a < 0x0069FE) ||
+		(a >= 0x006A27 && a < 0x006AEA) ||
+		(a >= 0x07FFA2 && a < 0x080000)) {
+		static int s_focus_waitcpu = 0;
+		if (s_focus_waitcpu < 600) {
+			fprintf(stderr,
+				"[PUAE_FOCUS_WAITCPU] addr=$%06X mode=%d val=$%08X pc=$%06X\n",
+				(unsigned)a, mode, (unsigned)v, (unsigned)(M68K_GETPC & 0xFFFFFF));
+			s_focus_waitcpu++;
+		}
+	}
 	int hpos;
 	int ipl = regs.ipl[0];
 	evt_t now = get_cycles();

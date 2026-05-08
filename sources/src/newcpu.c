@@ -676,6 +676,57 @@ static void cputracefunc_x_put_byte (uaecptr o, uae_u32 val)
 	add_trace (o, val, 1, 1);
 	x2_put_byte (o, val);
 }
+
+#ifdef HARNESS_BUILD
+static int harness_focus_addr(uaecptr addr)
+{
+	uaecptr a = addr & 0xFFFFFF;
+	return (a >= 0x0042FC && a < 0x004308) ||
+		(a >= 0x0069F1 && a < 0x0069FE) ||
+		(a >= 0x006A27 && a < 0x006AEA) ||
+		(a >= 0x07FFA2 && a < 0x080000);
+}
+
+static void harness_focus_x_put_long (uaecptr o, uae_u32 val)
+{
+	if (harness_focus_addr(o) || harness_focus_addr(o + 1) ||
+		harness_focus_addr(o + 2) || harness_focus_addr(o + 3)) {
+		static int n = 0;
+		if (n < 800) {
+			fprintf(stderr, "[PUAE_FOCUS_XPUT32] addr=$%06X val=$%08X pc=$%06X\n",
+				(unsigned)(o & 0xFFFFFF), (unsigned)val, (unsigned)(M68K_GETPC & 0xFFFFFF));
+			n++;
+		}
+	}
+	x2_put_long (o, val);
+}
+
+static void harness_focus_x_put_word (uaecptr o, uae_u32 val)
+{
+	if (harness_focus_addr(o) || harness_focus_addr(o + 1)) {
+		static int n = 0;
+		if (n < 800) {
+			fprintf(stderr, "[PUAE_FOCUS_XPUT16] addr=$%06X val=$%04X pc=$%06X\n",
+				(unsigned)(o & 0xFFFFFF), (unsigned)(val & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			n++;
+		}
+	}
+	x2_put_word (o, val);
+}
+
+static void harness_focus_x_put_byte (uaecptr o, uae_u32 val)
+{
+	if (harness_focus_addr(o)) {
+		static int n = 0;
+		if (n < 800) {
+			fprintf(stderr, "[PUAE_FOCUS_XPUT8] addr=$%06X val=$%02X pc=$%06X\n",
+				(unsigned)(o & 0xFFFFFF), (unsigned)(val & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			n++;
+		}
+	}
+	x2_put_byte (o, val);
+}
+#endif
 static void cputracefunc2_x_put_long (uaecptr o, uae_u32 val)
 {
 	uae_u32 v;
@@ -1381,10 +1432,20 @@ static void set_x_funcs (void)
 			x_do_cycles_post = cputracefunc2_x_do_cycles_post;
 		}
 	}
-
 	set_x_cp_funcs();
 	mmu_set_funcs();
 	mmu030_set_funcs();
+
+#ifdef HARNESS_BUILD
+	if (getenv("PUAE_TRACE_XPUT_FOCUS") != NULL) {
+		x2_put_long = x_put_long;
+		x2_put_word = x_put_word;
+		x2_put_byte = x_put_byte;
+		x_put_long = harness_focus_x_put_long;
+		x_put_word = harness_focus_x_put_word;
+		x_put_byte = harness_focus_x_put_byte;
+	}
+#endif
 
 	dcache_lput = put_long;
 	dcache_wput = put_word;
