@@ -4124,6 +4124,9 @@ void memory_put_long(uaecptr addr, uae_u32 v)
 }
 void memory_put_word(uaecptr addr, uae_u32 v)
 {
+	/* Log to comparison trace (chip RAM only) */
+	if ((addr & 0xFF000000) == 0)
+		trace_ops_log_puae(addr, 2, v);
 	/* Benefactor trace: buffer pointer swap + scroll copper area */
 	if ((addr >= 0x4198 && addr <= 0x41A0) || (addr >= 0x87D4 && addr < 0x87F0)) {
 		fprintf(stderr, "[PUAE_TRACE] frame=%d write16 $%06X = $%04X\n",
@@ -4142,6 +4145,9 @@ void memory_put_word(uaecptr addr, uae_u32 v)
 }
 void memory_put_byte(uaecptr addr, uae_u32 v)
 {
+	/* Log to comparison trace (chip RAM only) */
+	if ((addr & 0xFF000000) == 0)
+		trace_ops_log_puae(addr, 1, v);
 	addrbank *ab = &get_mem_bank(addr);
 	if (!ab->baseaddr_direct_w) {
 		call_mem_put_func(ab->bput, addr, v);
