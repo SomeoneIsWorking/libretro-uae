@@ -4297,76 +4297,6 @@ void memory_put_long(uaecptr addr, uae_u32 v)
 }
 void memory_put_word(uaecptr addr, uae_u32 v)
 {
-	if (puae_state_watch_16(addr)) {
-		static int state_putw_count = 0;
-		if (state_putw_count < 240) {
-			fprintf(stderr, "[PUAE_STATE_MEM16] addr=$%06X val=$%04X pc=$%06X\n",
-				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
-			state_putw_count++;
-		}
-	}
-	if (puae_focus_watch_16(addr)) {
-		static int focus_putw_count = 0;
-		if (focus_putw_count < 320) {
-			fprintf(stderr, "[PUAE_FOCUS_MEM16] addr=$%06X val=$%04X pc=$%06X\n",
-				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
-			focus_putw_count++;
-		}
-	}
-	/* Benefactor trace: buffer pointer swap + scroll copper area */
-	if ((addr >= 0x4198 && addr <= 0x41A0) || (addr >= 0x87D4 && addr < 0x87F0)) {
-		char buf[80]; int n = snprintf(buf, sizeof(buf), "[PUAE_TRACE] frame=%d write16 $%06X = $%04X\n",
-			puae_trace_frame, (unsigned)addr, (unsigned)(v & 0xffff)); write(2, buf, n);
-	}
-	/* Probe: catch ALL CPU word writes to char staging buffer $078E00-$078E27.
-	 * Gate to comparison-phase frames only (>= 600) to avoid boot-frame counter exhaustion.
-	 * On first write ($078E00), also dump 20 bytes of anim string from $42FE pointer. */
-	if (addr >= 0x078E00u && addr <= 0x078E26u && puae_trace_frame >= 600) {
-		static int s_stage_cpu_mem2 = 0;
-		if (s_stage_cpu_mem2 < 200) {
-			char buf[200]; int n;
-			if (addr == 0x078E00u && chipmem_bank.baseaddr) {
-				uae_u8 *b = chipmem_bank.baseaddr;
-				uae_u32 aptr = ((uae_u32)b[0x42FE] << 24) | ((uae_u32)b[0x42FF] << 16) |
-				               ((uae_u32)b[0x4300] << 8)  |  (uae_u32)b[0x4301];
-				char str[44]; int si = 0;
-				for (int ci = 0; ci < 20 && si < 40; ci++) {
-					uae_u32 ca = aptr + ci;
-					uae_u8 ch = (ca < (uae_u32)chipmem_bank.allocated_size) ? b[ca] : 0;
-					si += snprintf(str+si, sizeof(str)-si, "%02X", ch);
-				}
-				n = snprintf(buf, sizeof(buf),
-					"[PUAE_ANIM_STR2] frame=%d aptr=$%06X str=%s\n",
-					puae_trace_frame, (unsigned)aptr, str);
-				write(2, buf, n);
-			}
-			n = snprintf(buf, sizeof(buf),
-				"[PUAE_STAGE_CPU_MEM16] frame=%d addr=$%06X val=$%04X\n",
-				puae_trace_frame, (unsigned)(addr & 0xFFFFFFu), (unsigned)(v & 0xFFFFu));
-			write(2, buf, n);
-			s_stage_cpu_mem2++;
-		}
-	}
-	if (addr == 0x00DFF058) {
-		static int s_puae_blt = 0;
-		if (s_puae_blt < 400) {
-			fprintf(stderr, "[PUAE_BLTSIZE] BLTSIZE=$%04X pc=$%06X\n",
-				(unsigned)(v & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
-			s_puae_blt++;
-		}
-	}
-	/* Benefactor trace: color register writes */
-	if (addr >= 0xDFF180 && addr <= 0xDFF1BE) {
-		static int color_write_count = 0;
-		if (color_write_count < 5) {
-			addrbank *ab2 = &get_mem_bank(addr);
-			char buf[128]; int n = snprintf(buf, sizeof(buf),
-				"[COLOR_WRITE_PATH] addr=$%08X val=$%04X direct_w=%p wput=%p count=%d\n",
-				(unsigned)addr, (unsigned)(v & 0xffff), (void*)ab2->baseaddr_direct_w, (void*)ab2->wput, color_write_count);
-			write(2, buf, n);
-			color_write_count++;
-		}
-	}
 	addrbank *ab = &get_mem_bank(addr);
 	if (!ab->baseaddr_direct_w) {
 		call_mem_put_func(ab->wput, addr, v);
@@ -4380,22 +4310,6 @@ void memory_put_word(uaecptr addr, uae_u32 v)
 }
 void memory_put_byte(uaecptr addr, uae_u32 v)
 {
-	if (puae_state_watch_addr(addr)) {
-		static int state_putb_count = 0;
-		if (state_putb_count < 240) {
-			fprintf(stderr, "[PUAE_STATE_MEM8] addr=$%06X val=$%02X pc=$%06X\n",
-				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
-			state_putb_count++;
-		}
-	}
-	if (puae_focus_watch_addr(addr)) {
-		static int focus_putb_count = 0;
-		if (focus_putb_count < 320) {
-			fprintf(stderr, "[PUAE_FOCUS_MEM8] addr=$%06X val=$%02X pc=$%06X\n",
-				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
-			focus_putb_count++;
-		}
-	}
 	addrbank *ab = &get_mem_bank(addr);
 	if (!ab->baseaddr_direct_w) {
 		call_mem_put_func(ab->bput, addr, v);
