@@ -901,6 +901,15 @@ void REGPARAM2 chipmem_agnus_wput (uaecptr addr, uae_u32 w)
 	addr &= chipmem_full_mask;
 	if (addr >= chipmem_full_size - 1)
 		return;
+	/* Probe: catch blitter writes to char staging area $078E00-$078E27 */
+	if (addr >= 0x078E00u && addr <= 0x078E26u) {
+		static int s_stage_blt = 0;
+		if (s_stage_blt < 200) {
+			fprintf(stderr, "[PUAE_STAGE_BLT16] frame=%d addr=$%06X val=$%04X\n",
+				puae_trace_frame, (unsigned)addr, (unsigned)(w & 0xFFFFu));
+			s_stage_blt++;
+		}
+	}
 	if (puae_focus_watch_16_chip(addr)) {
 		static int s_focus_agnus16 = 0;
 		if (s_focus_agnus16 < 512) {
@@ -4308,6 +4317,35 @@ void memory_put_word(uaecptr addr, uae_u32 v)
 	if ((addr >= 0x4198 && addr <= 0x41A0) || (addr >= 0x87D4 && addr < 0x87F0)) {
 		char buf[80]; int n = snprintf(buf, sizeof(buf), "[PUAE_TRACE] frame=%d write16 $%06X = $%04X\n",
 			puae_trace_frame, (unsigned)addr, (unsigned)(v & 0xffff)); write(2, buf, n);
+	}
+	/* Probe: catch ALL CPU word writes to char staging buffer $078E00-$078E27.
+	 * Gate to comparison-phase frames only (>= 600) to avoid boot-frame counter exhaustion.
+	 * On first write ($078E00), also dump 20 bytes of anim string from $42FE pointer. */
+	if (addr >= 0x078E00u && addr <= 0x078E26u && puae_trace_frame >= 600) {
+		static int s_stage_cpu_mem2 = 0;
+		if (s_stage_cpu_mem2 < 200) {
+			char buf[200]; int n;
+			if (addr == 0x078E00u && chipmem_bank.baseaddr) {
+				uae_u8 *b = chipmem_bank.baseaddr;
+				uae_u32 aptr = ((uae_u32)b[0x42FE] << 24) | ((uae_u32)b[0x42FF] << 16) |
+				               ((uae_u32)b[0x4300] << 8)  |  (uae_u32)b[0x4301];
+				char str[44]; int si = 0;
+				for (int ci = 0; ci < 20 && si < 40; ci++) {
+					uae_u32 ca = aptr + ci;
+					uae_u8 ch = (ca < (uae_u32)chipmem_bank.allocated_size) ? b[ca] : 0;
+					si += snprintf(str+si, sizeof(str)-si, "%02X", ch);
+				}
+				n = snprintf(buf, sizeof(buf),
+					"[PUAE_ANIM_STR2] frame=%d aptr=$%06X str=%s\n",
+					puae_trace_frame, (unsigned)aptr, str);
+				write(2, buf, n);
+			}
+			n = snprintf(buf, sizeof(buf),
+				"[PUAE_STAGE_CPU_MEM16] frame=%d addr=$%06X val=$%04X\n",
+				puae_trace_frame, (unsigned)(addr & 0xFFFFFFu), (unsigned)(v & 0xFFFFu));
+			write(2, buf, n);
+			s_stage_cpu_mem2++;
+		}
 	}
 	if (addr == 0x00DFF058) {
 		static int s_puae_blt = 0;
