@@ -6580,9 +6580,9 @@ static void benefactor_insn_trace(struct regstruct *r)
 	}
 	if (en && f && lines < 200000 &&
 	    r->instruction_pc >= lo && r->instruction_pc < hi) {
-		fprintf(f, "%06X d0=%08X d1=%08X d2=%08X a0=%08X a4=%08X a6=%08X\n",
-		        r->instruction_pc, r->regs[0], r->regs[1], r->regs[2],
-		        r->regs[8], r->regs[12], r->regs[14]);
+		fprintf(f, "%06X d0=%08X d2=%08X d3=%08X d7=%08X a0=%08X a1=%08X a2=%08X\n",
+		        r->instruction_pc, r->regs[0], r->regs[2], r->regs[3],
+		        r->regs[7], r->regs[8], r->regs[9], r->regs[10]);
 		lines++;
 		if ((lines & 0x3FF) == 0) fflush(f);
 	}
