@@ -956,11 +956,13 @@ static void actually_do_blit (void)
 			blitter_dofast();
 
 		if (bta_en && bta_f && !blitdesc) {
+			extern int g_harness_compared_frame;
 			uae_u32 ck = 0;
 			int rowstride = bta_w * 2 + bta_dmod;
 			for (int y = 0; y < bta_h; y++)
 				for (int x = 0; x < bta_w; x++)
 					ck = ck * 31u + chipmem_wget_indirect(bta_dpt0 + (uae_u32)(y * rowstride + x * 2));
+			fprintf(bta_f, "f=%d ", g_harness_compared_frame);
 			fprintf(bta_f,
 				"dpt=%06X apt=%06X bpt=%06X cpt=%06X con0=%04X con1=%04X size=%04X "
 				"afwm=%04X alwm=%04X carryIn=%04X cksum=%08X\n",
