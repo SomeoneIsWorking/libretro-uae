@@ -6558,6 +6558,36 @@ static void m68k_run_2_000(void)
 	}
 }
 
+/* Benefactor harness: env-gated M68K instruction tracer.
+ * BENEFACTOR_M68K_TRACE=1 logs PC+regs for instructions in a target range
+ * (default $5500-$6100, override BENEFACTOR_M68K_RANGE=lo-hi hex) to
+ * logs/puae_insn_trace.txt. Compared against the PC port's RT_INSNS trace to
+ * find the first instruction where recompiled vs emulated execution diverges. */
+static void benefactor_insn_trace(struct regstruct *r)
+{
+	static int en = -1;
+	static FILE *f = NULL;
+	static uae_u32 lo = 0x5500, hi = 0x6100;
+	static long lines = 0;
+	if (en < 0) {
+		const char *e = getenv("BENEFACTOR_M68K_TRACE");
+		en = (e && e[0] == '1') ? 1 : 0;
+		if (en) {
+			const char *rg = getenv("BENEFACTOR_M68K_RANGE");
+			if (rg) { unsigned a, b; if (sscanf(rg, "%x-%x", &a, &b) == 2) { lo = a; hi = b; } }
+			f = fopen("logs/puae_insn_trace.txt", "w");
+		}
+	}
+	if (en && f && lines < 200000 &&
+	    r->instruction_pc >= lo && r->instruction_pc < hi) {
+		fprintf(f, "%06X d0=%08X d1=%08X d2=%08X a0=%08X a4=%08X a6=%08X\n",
+		        r->instruction_pc, r->regs[0], r->regs[1], r->regs[2],
+		        r->regs[8], r->regs[12], r->regs[14]);
+		lines++;
+		if ((lines & 0x3FF) == 0) fflush(f);
+	}
+}
+
 static void m68k_run_2_020(void)
 {
 #ifdef WITH_THREADED_CPU
@@ -6575,6 +6605,7 @@ static void m68k_run_2_020(void)
 		TRY(prb) {
 			while (!exit) {
 				r->instruction_pc = m68k_getpc();
+				benefactor_insn_trace(r);
 
 				r->opcode = x_get_iword(0);
 				count_instr(r->opcode);
