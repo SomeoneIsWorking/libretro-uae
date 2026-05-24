@@ -936,10 +936,40 @@ static void actually_do_blit (void)
 			blt_info.vblitsize--;
 		} while (blt_info.vblitsize != 0);
 	} else {
+		/* Benefactor harness: full per-blit trace (env BLIT_TRACE_ALL=1) →
+		 * logs/puae_blit_trace.txt, matched against the PC side to find the
+		 * first diverging blit (carry-in / output checksum). */
+		static int bta_en = -1;
+		static FILE *bta_f = NULL;
+		if (bta_en < 0) {
+			bta_en = (getenv("BLIT_TRACE_ALL") != NULL) ? 1 : 0;
+			if (bta_en) bta_f = fopen("logs/puae_blit_trace.txt", "w");
+		}
+		uaecptr bta_dpt0 = bltdpt;
+		uae_u16 bta_carry = blt_info.bltaold;
+		int bta_w = blt_info.hblitsize, bta_h = blt_info.vblitsize;
+		int bta_dmod = blt_info.bltdmod;
+
 		if (blitdesc)
 			blitter_dofast_desc();
 		else
 			blitter_dofast();
+
+		if (bta_en && bta_f && !blitdesc) {
+			uae_u32 ck = 0;
+			int rowstride = bta_w * 2 + bta_dmod;
+			for (int y = 0; y < bta_h; y++)
+				for (int x = 0; x < bta_w; x++)
+					ck = ck * 31u + chipmem_wget_indirect(bta_dpt0 + (uae_u32)(y * rowstride + x * 2));
+			fprintf(bta_f,
+				"dpt=%06X apt=%06X bpt=%06X cpt=%06X con0=%04X con1=%04X size=%04X "
+				"afwm=%04X alwm=%04X carryIn=%04X cksum=%08X\n",
+				bta_dpt0 & 0xFFFFFF, bltapt & 0xFFFFFF, bltbpt & 0xFFFFFF, bltcpt & 0xFFFFFF,
+				bltcon0, bltcon1,
+				(uae_u16)(((bta_h & 0x3FF) << 6) | (bta_w & 0x3F)),
+				blt_info.bltafwm, blt_info.bltalwm,
+				bta_carry, ck);
+		}
 	}
 	blt_info.blit_main = 0;
 }
