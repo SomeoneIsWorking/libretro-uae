@@ -6580,7 +6580,9 @@ static void benefactor_insn_trace(struct regstruct *r)
 	}
 	if (en && f && lines < 200000 &&
 	    r->instruction_pc >= lo && r->instruction_pc < hi) {
-		fprintf(f, "%06X d0=%08X d2=%08X d3=%08X d7=%08X a0=%08X a1=%08X a2=%08X\n",
+		extern int g_harness_compared_frame;
+		fprintf(f, "f=%d %06X d0=%08X d2=%08X d3=%08X d7=%08X a0=%08X a1=%08X a2=%08X\n",
+		        g_harness_compared_frame,
 		        r->instruction_pc, r->regs[0], r->regs[2], r->regs[3],
 		        r->regs[7], r->regs[8], r->regs[9], r->regs[10]);
 		lines++;
