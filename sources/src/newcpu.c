@@ -6563,6 +6563,14 @@ static void m68k_run_2_000(void)
  * (default $5500-$6100, override BENEFACTOR_M68K_RANGE=lo-hi hex) to
  * logs/puae_insn_trace.txt. Compared against the PC port's RT_INSNS trace to
  * find the first instruction where recompiled vs emulated execution diverges. */
+/* Sync breakpoint: when g_benefactor_sync_pc != 0 and the CPU is about to
+ * execute that PC, the run loop exits before executing it, letting the harness
+ * capture the dump at a precise game-loop boundary ($003732, the title main-loop
+ * top) so PC and PUAE start from an identical full iteration. */
+uae_u32 g_benefactor_sync_pc   = 0;
+int     g_benefactor_sync_hit  = 0;
+int     g_benefactor_sync_skip = 0;
+
 static void benefactor_insn_trace(struct regstruct *r)
 {
 	static int en = -1;
@@ -6608,6 +6616,17 @@ static void m68k_run_2_020(void)
 			while (!exit) {
 				r->instruction_pc = m68k_getpc();
 				benefactor_insn_trace(r);
+
+				if (g_benefactor_sync_pc && r->instruction_pc == g_benefactor_sync_pc) {
+					if (g_benefactor_sync_skip > 0) {
+						g_benefactor_sync_skip--;
+					} else {
+						g_benefactor_sync_hit = 1;
+						libretro_frame_end = true;  /* make m68k_go return instead of re-entering */
+						exit = true;
+						break;
+					}
+				}
 
 				r->opcode = x_get_iword(0);
 				count_instr(r->opcode);
