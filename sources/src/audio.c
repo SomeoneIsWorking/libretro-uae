@@ -2773,6 +2773,12 @@ void AUDxVOL (int nr, uae_u16 v)
 	audio_activate ();
 	update_audio ();
 	update_volume(nr, v);
+	if (getenv("PUAE_VOL_TRACE")) {
+		extern int g_harness_compared_frame;
+		char _b[64]; int _n = snprintf(_b, sizeof _b, "[pvol] f=%d ch%d vol=%u\n",
+			g_harness_compared_frame, nr, (unsigned)(v & 0x7F));
+		if (_n > 0) write(2, _b, (size_t)_n);
+	}
 #if DEBUG_AUDIO > 0
 	if (debugchannel (nr))
 		write_log (_T("AUD%dVOL: %d %08X\n"), nr, v, M68K_GETPC);
