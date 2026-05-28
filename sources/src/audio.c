@@ -2775,8 +2775,8 @@ void AUDxVOL (int nr, uae_u16 v)
 	update_volume(nr, v);
 	if (getenv("PUAE_VOL_TRACE")) {
 		extern int g_harness_compared_frame;
-		char _b[64]; int _n = snprintf(_b, sizeof _b, "[pvol] f=%d ch%d vol=%u\n",
-			g_harness_compared_frame, nr, (unsigned)(v & 0x7F));
+		char _b[80]; int _n = snprintf(_b, sizeof _b, "[pvol] f=%d ch%d vol=%u pc=%08X\n",
+			g_harness_compared_frame, nr, (unsigned)(v & 0x7F), (unsigned)M68K_GETPC);
 		if (_n > 0) write(2, _b, (size_t)_n);
 	}
 #if DEBUG_AUDIO > 0
