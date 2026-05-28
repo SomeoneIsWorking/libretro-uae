@@ -9970,6 +9970,13 @@ static void BLTSIZE(int hpos, uae_u16 v)
 	if (!blt_info.hblitsize) {
 		blt_info.hblitsize = 64;
 	}
+	/* Benefactor: log the M68K instruction that issues a bottom-buffer blit
+	 * (BLTSIZE write is synchronous with the CPU, unlike the async DMA blit). */
+	if (getenv("BLT_ISSUER") && bltdpt >= 0x50000 && bltdpt < 0x68000) {
+		fprintf(stderr, "[blt-issuer] pc=%06X dpt=%06X con0=%04X size=%04X\n",
+		        (unsigned)(M68K_GETPC & 0xFFFFFF), (unsigned)(bltdpt & 0xFFFFFF),
+		        (unsigned)bltcon0, (unsigned)v);
+	}
 	do_blitter(hpos, copper_access, copper_access ? cop_state.ip : M68K_GETPC);
 	dcheck_is_blit_dangerous();
 }

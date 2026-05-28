@@ -943,7 +943,11 @@ static void actually_do_blit (void)
 		static FILE *bta_f = NULL;
 		if (bta_en < 0) {
 			bta_en = (getenv("BLIT_TRACE_ALL") != NULL) ? 1 : 0;
-			if (bta_en) bta_f = fopen("logs/puae_blit_trace.txt", "w");
+			if (bta_en) {
+				const char *d = getenv("BLIT_TRACE_DIR");
+				char p[300]; snprintf(p, sizeof p, "%s/puae_blit_trace.txt", d ? d : "logs");
+				bta_f = fopen(p, "w");
+			}
 		}
 		uaecptr bta_dpt0 = bltdpt;
 		uae_u16 bta_carry = blt_info.bltaold;
@@ -955,14 +959,20 @@ static void actually_do_blit (void)
 		else
 			blitter_dofast();
 
-		if (bta_en && bta_f && !blitdesc) {
+		if (bta_en && bta_f) {
 			extern int g_harness_compared_frame;
 			uae_u32 ck = 0;
-			int rowstride = bta_w * 2 + bta_dmod;
+			int rowstride = bta_w * 2 + bta_dmod;     /* magnitude */
+			/* Checksum the WRITTEN words in PUAE's processing order so it matches
+			 * the PC side's per-word checksum: descending walks high→low. */
 			for (int y = 0; y < bta_h; y++)
-				for (int x = 0; x < bta_w; x++)
-					ck = ck * 31u + chipmem_wget_indirect(bta_dpt0 + (uae_u32)(y * rowstride + x * 2));
-			fprintf(bta_f, "f=%d ", g_harness_compared_frame);
+				for (int x = 0; x < bta_w; x++) {
+					int32_t off = y * rowstride + x * 2;
+					uae_u32 a = blitdesc ? (uae_u32)((int32_t)bta_dpt0 - off)
+					                     : (uae_u32)((int32_t)bta_dpt0 + off);
+					ck = ck * 31u + chipmem_wget_indirect(a);
+				}
+			fprintf(bta_f, "f=%d pc=%06X ", g_harness_compared_frame, m68k_getpc() & 0xFFFFFF);
 			fprintf(bta_f,
 				"dpt=%06X apt=%06X bpt=%06X cpt=%06X con0=%04X con1=%04X size=%04X "
 				"afwm=%04X alwm=%04X carryIn=%04X cksum=%08X\n",

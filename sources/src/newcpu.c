@@ -6576,6 +6576,7 @@ static void benefactor_insn_trace(struct regstruct *r)
 	static int en = -1;
 	static FILE *f = NULL;
 	static uae_u32 lo = 0x5500, hi = 0x6100;
+	static int flo = 0, fhi = 1 << 30;
 	static long lines = 0;
 	if (en < 0) {
 		const char *e = getenv("BENEFACTOR_M68K_TRACE");
@@ -6583,12 +6584,15 @@ static void benefactor_insn_trace(struct regstruct *r)
 		if (en) {
 			const char *rg = getenv("BENEFACTOR_M68K_RANGE");
 			if (rg) { unsigned a, b; if (sscanf(rg, "%x-%x", &a, &b) == 2) { lo = a; hi = b; } }
+			const char *fr = getenv("BENEFACTOR_M68K_FRAMES");
+			if (fr) { unsigned a, b; if (sscanf(fr, "%u-%u", &a, &b) == 2) { flo = (int)a; fhi = (int)b; } }
 			f = fopen("logs/puae_insn_trace.txt", "w");
 		}
 	}
+	extern int g_harness_compared_frame;
 	if (en && f && lines < 200000 &&
-	    r->instruction_pc >= lo && r->instruction_pc < hi) {
-		extern int g_harness_compared_frame;
+	    r->instruction_pc >= lo && r->instruction_pc < hi &&
+	    g_harness_compared_frame >= flo && g_harness_compared_frame <= fhi) {
 		fprintf(f, "f=%d %06X d0=%08X d2=%08X d3=%08X d7=%08X a0=%08X a1=%08X a2=%08X\n",
 		        g_harness_compared_frame,
 		        r->instruction_pc, r->regs[0], r->regs[2], r->regs[3],
