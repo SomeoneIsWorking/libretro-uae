@@ -616,11 +616,23 @@ static uae_u32 REGPARAM2 chipmem_bget_ce2 (uaecptr addr)
 	return chipmem_bank.baseaddr[addr];
 }
 
+/* Forward declaration for the watch hook used below. */
+int puae_watch_chip_addr_match(uae_u32 addr);
+
 static void REGPARAM2 chipmem_lput_ce2 (uaecptr addr, uae_u32 l)
 {
 	uae_u32 *m;
 
 	addr &= chipmem_bank.mask;
+	if (puae_watch_chip_addr_match(addr) || puae_watch_chip_addr_match(addr+1) ||
+	    puae_watch_chip_addr_match(addr+2) || puae_watch_chip_addr_match(addr+3)) {
+		static int n = 0;
+		if (n < 320) {
+			write_log("[PUAE_FOCUS_CE2_32] addr=$%06X val=$%08X pc=$%06X\n",
+				(unsigned)addr, (unsigned)l, (unsigned)(M68K_GETPC & 0xFFFFFF));
+			n++;
+		}
+	}
 	m = (uae_u32 *)(chipmem_bank.baseaddr + addr);
 	ce2_timeout ();
 	do_put_mem_long (m, l);
@@ -631,6 +643,14 @@ static void REGPARAM2 chipmem_wput_ce2 (uaecptr addr, uae_u32 w)
 	uae_u16 *m;
 
 	addr &= chipmem_bank.mask;
+	if (puae_watch_chip_addr_match(addr) || puae_watch_chip_addr_match(addr+1)) {
+		static int n = 0;
+		if (n < 320) {
+			write_log("[PUAE_FOCUS_CE2_16] addr=$%06X val=$%04X pc=$%06X\n",
+				(unsigned)addr, (unsigned)(w & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			n++;
+		}
+	}
 	m = (uae_u16 *)(chipmem_bank.baseaddr + addr);
 	ce2_timeout ();
 	do_put_mem_word (m, w);
@@ -639,6 +659,14 @@ static void REGPARAM2 chipmem_wput_ce2 (uaecptr addr, uae_u32 w)
 static void REGPARAM2 chipmem_bput_ce2 (uaecptr addr, uae_u32 b)
 {
 	addr &= chipmem_bank.mask;
+	if (puae_watch_chip_addr_match(addr)) {
+		static int n = 0;
+		if (n < 320) {
+			write_log("[PUAE_FOCUS_CE2_8] addr=$%06X val=$%02X pc=$%06X\n",
+				(unsigned)addr, (unsigned)(b & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			n++;
+		}
+	}
 	ce2_timeout ();
 	chipmem_bank.baseaddr[addr] = b;
 }
@@ -748,8 +776,52 @@ static uae_u32 REGPARAM2 chipmem_bget (uaecptr addr)
 	return v;
 }
 
+/* Runtime-configurable chip-RAM watch list. Used by the harness REPL's
+ * `puwatch <addr>` / `puwatch <lo>-<hi>` / `puwatchclear` commands so any
+ * "what writes $X on real hardware?" question can be answered live without a
+ * rebuild — the project's "no env sprawl, drive things via the REPL"
+ * convention. Each matching write logs the M68K PC + value to stderr through
+ * the existing PUAE_FOCUS_CHIP* / PUAE_FOCUS_BIGMEM* paths in chipmem_*put.
+ * The hardcoded ranges below stay as defaults for the in-flight investigations
+ * they were added for. */
+#define PUAE_WATCH_MAX 16
+static struct { uae_u32 lo, hi; } s_puae_extra_watch[PUAE_WATCH_MAX];
+static int s_puae_extra_watch_n = 0;
+
+void puae_watch_chip_add(uae_u32 lo, uae_u32 hi)
+{
+	if (s_puae_extra_watch_n >= PUAE_WATCH_MAX) {
+		write_log("[puae-watch-chip] list full (%d entries) - clear first\n",
+			PUAE_WATCH_MAX);
+		return;
+	}
+	if (hi < lo) hi = lo;
+	s_puae_extra_watch[s_puae_extra_watch_n].lo = lo;
+	s_puae_extra_watch[s_puae_extra_watch_n].hi = hi;
+	s_puae_extra_watch_n++;
+	write_log("[puae-watch-chip] watching $%06X..$%06X (%d total)\n",
+		(unsigned)lo, (unsigned)hi, s_puae_extra_watch_n);
+}
+
+void puae_watch_chip_clear(void)
+{
+	s_puae_extra_watch_n = 0;
+	write_log("[puae-watch-chip] cleared\n");
+}
+
+/* Exported for newcpu.c's harness_focus_addr — same list, different write
+ * path (put_word/put_long via x2_put_* bypass the chipmem_*put dispatch). */
+int puae_watch_chip_addr_match(uae_u32 addr)
+{
+	for (int i = 0; i < s_puae_extra_watch_n; i++)
+		if (addr >= s_puae_extra_watch[i].lo && addr <= s_puae_extra_watch[i].hi)
+			return 1;
+	return 0;
+}
+
 static int puae_focus_watch_addr_chip(uaecptr addr)
 {
+	if (puae_watch_chip_addr_match(addr)) return 1;
 	return (addr >= 0x0042FC && addr < 0x004308) ||
 		(addr >= 0x0069F1 && addr < 0x0069FE) ||
 		(addr >= 0x006A27 && addr < 0x006AEA) ||
@@ -775,7 +847,7 @@ void REGPARAM2 chipmem_lput (uaecptr addr, uae_u32 l)
 	if (puae_focus_watch_32_chip(addr)) {
 		static int s_focus_chip32 = 0;
 		if (s_focus_chip32 < 512) {
-			fprintf(stderr, "[PUAE_FOCUS_CHIP32] addr=$%06X val=$%08X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_CHIP32] addr=$%06X val=$%08X pc=$%06X\n",
 				(unsigned)addr, (unsigned)l, (unsigned)(M68K_GETPC & 0xFFFFFF));
 			s_focus_chip32++;
 		}
@@ -792,7 +864,7 @@ void REGPARAM2 chipmem_wput (uaecptr addr, uae_u32 w)
 	if (puae_focus_watch_16_chip(addr)) {
 		static int s_focus_chip16 = 0;
 		if (s_focus_chip16 < 512) {
-			fprintf(stderr, "[PUAE_FOCUS_CHIP16] addr=$%06X val=$%04X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_CHIP16] addr=$%06X val=$%04X pc=$%06X\n",
 				(unsigned)addr, (unsigned)(w & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
 			s_focus_chip16++;
 		}
@@ -807,7 +879,7 @@ void REGPARAM2 chipmem_bput (uaecptr addr, uae_u32 b)
 	if (puae_focus_watch_addr_chip(addr)) {
 		static int s_focus_chip8 = 0;
 		if (s_focus_chip8 < 512) {
-			fprintf(stderr, "[PUAE_FOCUS_CHIP8] addr=$%06X val=$%02X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_CHIP8] addr=$%06X val=$%02X pc=$%06X\n",
 				(unsigned)addr, (unsigned)(b & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
 			s_focus_chip8++;
 		}
@@ -885,7 +957,7 @@ static void REGPARAM2 chipmem_agnus_lput (uaecptr addr, uae_u32 l)
 	if (puae_focus_watch_32_chip(addr)) {
 		static int s_focus_agnus32 = 0;
 		if (s_focus_agnus32 < 512) {
-			fprintf(stderr, "[PUAE_FOCUS_AGNUS32] addr=$%06X val=$%08X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_AGNUS32] addr=$%06X val=$%08X pc=$%06X\n",
 				(unsigned)addr, (unsigned)l, (unsigned)(M68K_GETPC & 0xFFFFFF));
 			s_focus_agnus32++;
 		}
@@ -913,7 +985,7 @@ void REGPARAM2 chipmem_agnus_wput (uaecptr addr, uae_u32 w)
 	if (puae_focus_watch_16_chip(addr)) {
 		static int s_focus_agnus16 = 0;
 		if (s_focus_agnus16 < 512) {
-			fprintf(stderr, "[PUAE_FOCUS_AGNUS16] addr=$%06X val=$%04X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_AGNUS16] addr=$%06X val=$%04X pc=$%06X\n",
 				(unsigned)addr, (unsigned)(w & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
 			s_focus_agnus16++;
 		}
@@ -930,7 +1002,7 @@ static void REGPARAM2 chipmem_agnus_bput (uaecptr addr, uae_u32 b)
 	if (puae_focus_watch_addr_chip(addr)) {
 		static int s_focus_agnus8 = 0;
 		if (s_focus_agnus8 < 512) {
-			fprintf(stderr, "[PUAE_FOCUS_AGNUS8] addr=$%06X val=$%02X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_AGNUS8] addr=$%06X val=$%02X pc=$%06X\n",
 				(unsigned)addr, (unsigned)(b & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
 			s_focus_agnus8++;
 		}
@@ -959,7 +1031,7 @@ STATIC_INLINE void REGPARAM2 chipmem_lput_bigmem (uaecptr addr, uae_u32 v)
 	if (puae_focus_watch_32_chip(addr)) {
 		static int s_focus_bigmem32 = 0;
 		if (s_focus_bigmem32 < 512) {
-			fprintf(stderr, "[PUAE_FOCUS_BIGMEM32] addr=$%06X val=$%08X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_BIGMEM32] addr=$%06X val=$%08X pc=$%06X\n",
 				(unsigned)(addr & 0xFFFFFF), (unsigned)v, (unsigned)(M68K_GETPC & 0xFFFFFF));
 			s_focus_bigmem32++;
 		}
@@ -971,7 +1043,7 @@ STATIC_INLINE void REGPARAM2 chipmem_wput_bigmem (uaecptr addr, uae_u32 v)
 	if (puae_focus_watch_16_chip(addr)) {
 		static int s_focus_bigmem16 = 0;
 		if (s_focus_bigmem16 < 512) {
-			fprintf(stderr, "[PUAE_FOCUS_BIGMEM16] addr=$%06X val=$%04X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_BIGMEM16] addr=$%06X val=$%04X pc=$%06X\n",
 				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
 			s_focus_bigmem16++;
 		}
@@ -983,7 +1055,7 @@ STATIC_INLINE void REGPARAM2 chipmem_bput_bigmem (uaecptr addr, uae_u32 v)
 	if (puae_focus_watch_addr_chip(addr)) {
 		static int s_focus_bigmem8 = 0;
 		if (s_focus_bigmem8 < 512) {
-			fprintf(stderr, "[PUAE_FOCUS_BIGMEM8] addr=$%06X val=$%02X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_BIGMEM8] addr=$%06X val=$%02X pc=$%06X\n",
 				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
 			s_focus_bigmem8++;
 		}
@@ -4237,6 +4309,10 @@ static int puae_state_watch_addr(uaecptr addr)
 
 static int puae_focus_watch_addr(uaecptr addr)
 {
+	/* REPL-driven list (puwatch <addr>) also matched here — `memory_put_long`
+	 * is a separate dispatch path from chipmem_*put and must consult the same
+	 * watch list, else writes that go through put_long-only paths are silent. */
+	if (puae_watch_chip_addr_match(addr)) return 1;
 	return (addr >= 0x00419C && addr < 0x0041A2) ||
 		(addr >= 0x0042FC && addr < 0x004308) ||
 		(addr >= 0x0069F1 && addr < 0x0069FE) ||
@@ -4279,7 +4355,7 @@ void memory_put_long(uaecptr addr, uae_u32 v)
 	if (puae_focus_watch_32(addr)) {
 		static int focus_putl_count = 0;
 		if (focus_putl_count < 320) {
-			fprintf(stderr, "[PUAE_FOCUS_MEM32] addr=$%06X val=$%08X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_MEM32] addr=$%06X val=$%08X pc=$%06X\n",
 				(unsigned)(addr & 0xFFFFFF), (unsigned)v, (unsigned)(M68K_GETPC & 0xFFFFFF));
 			focus_putl_count++;
 		}
@@ -4297,6 +4373,14 @@ void memory_put_long(uaecptr addr, uae_u32 v)
 }
 void memory_put_word(uaecptr addr, uae_u32 v)
 {
+	if (puae_focus_watch_addr(addr) || puae_focus_watch_addr(addr + 1)) {
+		static int n = 0;
+		if (n < 320) {
+			write_log("[PUAE_FOCUS_MEM16] addr=$%06X val=$%04X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			n++;
+		}
+	}
 	addrbank *ab = &get_mem_bank(addr);
 	if (!ab->baseaddr_direct_w) {
 		call_mem_put_func(ab->wput, addr, v);
@@ -4310,6 +4394,14 @@ void memory_put_word(uaecptr addr, uae_u32 v)
 }
 void memory_put_byte(uaecptr addr, uae_u32 v)
 {
+	if (puae_focus_watch_addr(addr)) {
+		static int n = 0;
+		if (n < 320) {
+			write_log("[PUAE_FOCUS_MEM8] addr=$%06X val=$%02X pc=$%06X\n",
+				(unsigned)(addr & 0xFFFFFF), (unsigned)(v & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
+			n++;
+		}
+	}
 	addrbank *ab = &get_mem_bank(addr);
 	if (!ab->baseaddr_direct_w) {
 		call_mem_put_func(ab->bput, addr, v);

@@ -678,9 +678,14 @@ static void cputracefunc_x_put_byte (uaecptr o, uae_u32 val)
 }
 
 #ifdef HARNESS_BUILD
+/* puae_watch_chip_addr_match: REPL-configured watch list lives in memory.c —
+ * the put_word / put_long fast path here also honours it so writes that go
+ * through the x2_put_* dispatch (not the chipmem_*put functions) are caught. */
+extern int puae_watch_chip_addr_match(uaecptr addr);
 static int harness_focus_addr(uaecptr addr)
 {
 	uaecptr a = addr & 0xFFFFFF;
+	if (puae_watch_chip_addr_match(a)) return 1;
 	return (a >= 0x0042FC && a < 0x004308) ||
 		(a >= 0x0069F1 && a < 0x0069FE) ||
 		(a >= 0x006A27 && a < 0x006AEA) ||
@@ -693,7 +698,7 @@ static void harness_focus_x_put_long (uaecptr o, uae_u32 val)
 		harness_focus_addr(o + 2) || harness_focus_addr(o + 3)) {
 		static int n = 0;
 		if (n < 800) {
-			fprintf(stderr, "[PUAE_FOCUS_XPUT32] addr=$%06X val=$%08X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_XPUT32] addr=$%06X val=$%08X pc=$%06X\n",
 				(unsigned)(o & 0xFFFFFF), (unsigned)val, (unsigned)(M68K_GETPC & 0xFFFFFF));
 			n++;
 		}
@@ -706,7 +711,7 @@ static void harness_focus_x_put_word (uaecptr o, uae_u32 val)
 	if (harness_focus_addr(o) || harness_focus_addr(o + 1)) {
 		static int n = 0;
 		if (n < 800) {
-			fprintf(stderr, "[PUAE_FOCUS_XPUT16] addr=$%06X val=$%04X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_XPUT16] addr=$%06X val=$%04X pc=$%06X\n",
 				(unsigned)(o & 0xFFFFFF), (unsigned)(val & 0xFFFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
 			n++;
 		}
@@ -719,7 +724,7 @@ static void harness_focus_x_put_byte (uaecptr o, uae_u32 val)
 	if (harness_focus_addr(o)) {
 		static int n = 0;
 		if (n < 800) {
-			fprintf(stderr, "[PUAE_FOCUS_XPUT8] addr=$%06X val=$%02X pc=$%06X\n",
+			write_log("[PUAE_FOCUS_XPUT8] addr=$%06X val=$%02X pc=$%06X\n",
 				(unsigned)(o & 0xFFFFFF), (unsigned)(val & 0xFF), (unsigned)(M68K_GETPC & 0xFFFFFF));
 			n++;
 		}
@@ -6590,15 +6595,40 @@ static void benefactor_insn_trace(struct regstruct *r)
 		}
 	}
 	extern int g_harness_compared_frame;
-	if (en && f && lines < 200000 &&
+	if (en && f && lines < 4000000 &&
 	    r->instruction_pc >= lo && r->instruction_pc < hi &&
 	    g_harness_compared_frame >= flo && g_harness_compared_frame <= fhi) {
-		fprintf(f, "f=%d %06X d0=%08X d2=%08X d3=%08X d7=%08X a0=%08X a1=%08X a2=%08X\n",
+		fprintf(f, "f=%d %06X d0=%08X d1=%08X d7=%08X a0=%08X a1=%08X a2=%08X a3=%08X a4=%08X a5=%08X a6=%08X\n",
 		        g_harness_compared_frame,
-		        r->instruction_pc, r->regs[0], r->regs[2], r->regs[3],
-		        r->regs[7], r->regs[8], r->regs[9], r->regs[10]);
+		        r->instruction_pc, r->regs[0], r->regs[1], r->regs[7],
+		        r->regs[8], r->regs[9], r->regs[10], r->regs[11], r->regs[12], r->regs[13], r->regs[14]);
 		lines++;
 		if ((lines & 0x3FF) == 0) fflush(f);
+	}
+}
+
+/* Watch the gameplay status word $10AC(a5)=$57FEBE: log each change + the PC
+ * that caused it, so we can find where PUAE sets the "level ready" bit15 that
+ * PC never sets. Env BENEFACTOR_WATCH_10AC=1. */
+/* Diagnostic: watch a memory long. Set BENEFACTOR_WATCH=<hexaddr> to log every
+ * change to *(long*)addr together with the M68K PC that caused it — i.e. who
+ * writes a given location. Used to find which routine populates gameplay data
+ * (e.g. the $4d064 level table) so the PC port can be made to do the same. */
+static void benefactor_watch_10ac(struct regstruct *r)
+{
+	static int en = -1; static uae_u32 wa = 0;
+	if (en < 0) { const char *e = getenv("BENEFACTOR_WATCH");
+	              en = e ? 1 : 0; if (e) wa = (uae_u32)strtoul(e, NULL, 16); }
+	if (!en) return;
+	if (r->instruction_pc >= 0x600000) return;  /* skip KS ROM/high; watch game RAM */
+	static uae_u32 last = 0; static int init = 0;
+	uae_u32 v = get_long(wa);
+	if (!init) { last = v; init = 1; return; }
+	if (v != last) {
+		static int n = 0;
+		if (n++ < 30)
+			fprintf(stderr, "[watch] $%06X %08X -> %08X at PC=%06X\n", wa, last, v, r->instruction_pc);
+		last = v;
 	}
 }
 
@@ -6620,6 +6650,7 @@ static void m68k_run_2_020(void)
 			while (!exit) {
 				r->instruction_pc = m68k_getpc();
 				benefactor_insn_trace(r);
+				benefactor_watch_10ac(r);
 
 				if (g_benefactor_sync_pc && r->instruction_pc == g_benefactor_sync_pc) {
 					if (g_benefactor_sync_skip > 0) {
