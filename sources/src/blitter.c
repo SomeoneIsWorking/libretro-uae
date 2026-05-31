@@ -2054,6 +2054,17 @@ void do_blitter(int hpos, int copper, uaecptr pc)
 
 	blitter_start_init();
 
+	/* BENEFACTOR: log each blit (source/dest/dims) to compare against the PC
+	 * blitter (hw_blitter.c BLIT_LOG). Used to find object draws PC is missing. */
+	if (getenv("BLIT_LOG_PUAE")) {
+		static FILE *_bbl = NULL; static long _bn = 0;
+		if (!_bbl) _bbl = fopen("logs/blit_puae.txt", "w");
+		if (_bbl) { fprintf(_bbl, "%ld apt=%06X bpt=%06X cpt=%06X dpt=%06X w=%d h=%d con0=%04X\n",
+			_bn++, (unsigned)(bltapt & 0xFFFFFF), (unsigned)(bltbpt & 0xFFFFFF),
+			(unsigned)(bltcpt & 0xFFFFFF), (unsigned)(bltdpt & 0xFFFFFF),
+			(int)blt_info.hblitsize, (int)blt_info.vblitsize, (unsigned)bltcon0); fflush(_bbl); }
+	}
+
 	if (blitline) {
 		cycles = blt_info.vblitsize * blt_info.hblitsize;
 	} else {
