@@ -822,6 +822,11 @@ int puae_watch_chip_addr_match(uae_u32 addr)
 static int puae_focus_watch_addr_chip(uaecptr addr)
 {
 	if (puae_watch_chip_addr_match(addr)) return 1;
+	/* The hardcoded ranges below feed [PUAE_FOCUS_*] debug spam — off unless
+	 * BENEFACTOR_FOCUS_WATCH is set (kept the puwatch list above always live). */
+	static int s_en = -1;
+	if (s_en < 0) s_en = getenv("BENEFACTOR_FOCUS_WATCH") ? 1 : 0;
+	if (!s_en) return 0;
 	return (addr >= 0x0042FC && addr < 0x004308) ||
 		(addr >= 0x0069F1 && addr < 0x0069FE) ||
 		(addr >= 0x006A27 && addr < 0x006AEA) ||
@@ -4313,6 +4318,11 @@ static int puae_focus_watch_addr(uaecptr addr)
 	 * is a separate dispatch path from chipmem_*put and must consult the same
 	 * watch list, else writes that go through put_long-only paths are silent. */
 	if (puae_watch_chip_addr_match(addr)) return 1;
+	/* The hardcoded ranges below feed [PUAE_FOCUS_*] debug spam — off unless
+	 * BENEFACTOR_FOCUS_WATCH is set (kept the puwatch list above always live). */
+	static int s_en = -1;
+	if (s_en < 0) s_en = getenv("BENEFACTOR_FOCUS_WATCH") ? 1 : 0;
+	if (!s_en) return 0;
 	return (addr >= 0x00419C && addr < 0x0041A2) ||
 		(addr >= 0x0042FC && addr < 0x004308) ||
 		(addr >= 0x0069F1 && addr < 0x0069FE) ||
