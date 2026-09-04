@@ -11,7 +11,11 @@ struct flag_struct {
     unsigned int x;
 };
 
+#ifdef UAE_M68K_EMBED
+extern _Thread_local struct flag_struct regflags;
+#else
 extern struct flag_struct regflags;
+#endif
 
 #define FLAGBIT_N       15
 #define FLAGBIT_Z       14
@@ -71,4 +75,3 @@ static __inline__ int cctrue(int cc)
     abort ();
     return 0;
 }
-

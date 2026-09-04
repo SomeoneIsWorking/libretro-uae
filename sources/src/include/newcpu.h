@@ -270,7 +270,11 @@ struct regstruct
 	int memory_waitstate_cycles;
 };
 
+#ifdef UAE_M68K_EMBED
+extern _Thread_local struct regstruct regs;
+#else
 extern struct regstruct regs;
+#endif
 
 #define MAX_CPUTRACESIZE 128
 struct cputracememory

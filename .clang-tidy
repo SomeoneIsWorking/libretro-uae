@@ -1,0 +1,11 @@
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  clang-analyzer-*,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  performance-*,
+  readability-avoid-const-params-in-decls
+WarningsAsErrors: '*'
+HeaderFilterRegex: '^(embed|sources/src/m68k_embed.c|sources/src/include/uae/m68k_embed.h)'
+FormatStyle: file

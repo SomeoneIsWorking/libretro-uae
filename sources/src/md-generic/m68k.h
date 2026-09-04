@@ -15,7 +15,11 @@ struct flag_struct {
     unsigned int x;
 };
 
+#ifdef UAE_M68K_EMBED
+extern _Thread_local struct flag_struct regflags;
+#else
 extern struct flag_struct regflags;
+#endif
 
 #ifdef WORDS_BIGENDIAN
 #define FLAGBIT_N	31
