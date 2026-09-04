@@ -7,6 +7,27 @@
 #include "newcpu.h"
 #include "cpu_prefetch.h"
 #include "cputbl.h"
+#ifdef UAE_M68K_EMBED
+#undef CPUEMU_0
+#undef CPUEMU_13
+#undef CPUEMU_20
+#undef CPUEMU_21
+#undef CPUEMU_22
+#undef CPUEMU_23
+#undef CPUEMU_24
+#undef CPUEMU_25
+#undef CPUEMU_31
+#undef CPUEMU_32
+#undef CPUEMU_33
+#undef CPUEMU_34
+#undef CPUEMU_35
+#undef CPUEMU_40
+#undef CPUEMU_50
+#define CPUEMU_11
+#ifndef CPUEMU_68000_ONLY
+#define CPUEMU_68000_ONLY
+#endif
+#endif
 #define SET_ALWAYS_CFLG(x) SET_CFLG(x)
 #define SET_ALWAYS_NFLG(x) SET_NFLG(x)
 #ifdef CPUEMU_0
@@ -16247,6 +16268,7 @@ const struct cputbl op_smalltbl_13[] = {
 { NULL, op_e7f9_13_ff, 0xe7f9, 6, { 0, 0 }, 0 }, /* ROLW */
 { 0, 0 }};
 #endif /* CPUEMU_13 */
+#ifndef UAE_M68K_EMBED
 const struct cputbl op_smalltbl_14[] = {
 { NULL, op_0000_14_ff, 0x0000, 4, { 0, 0 }, 0 }, /* OR */
 { NULL, op_0010_14_ff, 0x0010, 4, { 0, 0 }, 0 }, /* OR */
@@ -17790,6 +17812,7 @@ const struct cputbl op_smalltbl_14[] = {
 { NULL, op_e7f8_14_ff, 0xe7f8, 4, { 0, 0 }, 0 }, /* ROLW */
 { NULL, op_e7f9_14_ff, 0xe7f9, 6, { 0, 0 }, 0 }, /* ROLW */
 { 0, 0 }};
+#endif
 #ifdef CPUEMU_20
 #ifndef CPUEMU_68000_ONLY
 const struct cputbl op_smalltbl_20[] = {
@@ -55747,6 +55770,7 @@ const struct cputbl op_smalltbl_45[] = {
 { op_e7f9_40_ff, NULL, 0xe7f9, 6, { 0, 0 }, 0 }, /* ROLW */
 { 0, 0 }};
 #endif /* CPUEMU_68000_ONLY */
+#ifndef UAE_M68K_EMBED
 const struct cputbl op_smalltbl_46[] = {
 { op_0000_40_ff, NULL, 0x0000, 4, { 0, 0 }, 0 }, /* OR */
 { op_0010_40_ff, NULL, 0x0010, 4, { 0, 0 }, 0 }, /* OR */
@@ -61919,6 +61943,7 @@ const struct cputbl op_smalltbl_49[] = {
 { op_e7f8_40_ff, NULL, 0xe7f8, 4, { 0, 0 }, 0 }, /* ROLW */
 { op_e7f9_40_ff, NULL, 0xe7f9, 6, { 0, 0 }, 0 }, /* ROLW */
 { 0, 0 }};
+#endif
 #ifdef CPUEMU_50
 const struct cputbl op_smalltbl_50[] = {
 { op_0000_50_ff, NULL, 0x0000, 4, { 0, 0 }, 0 }, /* OR */

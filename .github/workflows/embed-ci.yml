@@ -1,0 +1,35 @@
+name: 68000 Embed CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  embed:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86-64 / Clang
+            runner: ubuntu-24.04
+          - name: Windows x86-64 / clang-cl
+            runner: windows-2025
+          - name: macOS arm64 / AppleClang
+            runner: macos-26
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.13"
+      - name: Verify standalone embed target
+        run: python embed/tools/verify.py

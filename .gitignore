@@ -4,4 +4,5 @@
 *.a
 
 *.dll
+/build/
 sources/gen/

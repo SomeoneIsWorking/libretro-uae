@@ -15,7 +15,11 @@ struct flag_struct {
     unsigned short int x;
 };
 
+#ifdef UAE_M68K_EMBED
+extern _Thread_local struct flag_struct regflags;
+#else
 extern struct flag_struct regflags;
+#endif
 
 /*
  * The bits in the cznv field are assigned in correspondence to the
