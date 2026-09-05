@@ -20,15 +20,24 @@ add_library(uae_m68k_embed STATIC
     ../sources/src/m68k_embed.c)
 add_library(PUAE::M68kEmbed ALIAS uae_m68k_embed)
 
+add_library(uae_m68k_embed_sections INTERFACE)
+if(MSVC)
+    target_compile_options(uae_m68k_embed_sections INTERFACE /Gy /Gw)
+else()
+    target_compile_options(uae_m68k_embed_sections INTERFACE
+        -ffunction-sections -fdata-sections)
+endif()
+target_link_options(uae_m68k_embed_sections INTERFACE
+    $<$<OR:$<PLATFORM_ID:Linux>,$<PLATFORM_ID:Android>>:-Wl,--gc-sections>
+    $<$<PLATFORM_ID:Darwin>:-Wl,-dead_strip>
+    $<$<PLATFORM_ID:Windows>:/OPT:REF>
+    $<$<PLATFORM_ID:Windows>:/INCREMENTAL:NO>)
+target_link_libraries(uae_m68k_embed PRIVATE uae_m68k_embed_sections)
+
 target_compile_features(uae_m68k_embed PRIVATE c_std_11)
 target_compile_definitions(uae_m68k_embed PRIVATE
     __LIBRETRO__
     UAE_M68K_EMBED)
-if(NOT MSVC)
-    target_compile_options(uae_m68k_embed PRIVATE
-        -ffunction-sections
-        -fdata-sections)
-endif()
 if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
     target_compile_options(uae_m68k_embed PRIVATE -Wno-comment)
 endif()
@@ -45,10 +54,6 @@ target_include_directories(uae_m68k_embed SYSTEM
         ../libretro
         ../libretro-common/include
         ../libretro-common/include/compat/zlib)
-target_link_options(uae_m68k_embed INTERFACE
-    $<$<OR:$<PLATFORM_ID:Linux>,$<PLATFORM_ID:Android>>:-Wl,--gc-sections>
-    $<$<PLATFORM_ID:Darwin>:-Wl,-dead_strip>
-    $<$<PLATFORM_ID:Windows>:/OPT:REF>)
 
 set_target_properties(uae_m68k_embed PROPERTIES
     C_EXTENSIONS ON
@@ -61,6 +66,9 @@ if(PUAE_M68K_EMBED_BUILD_TESTS)
     target_compile_definitions(uae_m68k_embed_test PRIVATE UAE UAE_M68K_EMBED __LIBRETRO__)
     target_link_libraries(uae_m68k_embed_test PRIVATE PUAE::M68kEmbed)
     add_test(NAME uae_m68k_embed_test COMMAND uae_m68k_embed_test)
+    add_executable(uae_m68k_link_sections_test tests/link_sections_test.c)
+    target_link_libraries(uae_m68k_link_sections_test PRIVATE uae_m68k_embed_sections)
+    add_test(NAME uae_m68k_link_sections_test COMMAND uae_m68k_link_sections_test)
     foreach(profile IN ITEMS native windows)
         add_executable(uae_m68k_sysconfig_${profile}_test tests/sysconfig_test.c)
         target_compile_definitions(uae_m68k_sysconfig_${profile}_test PRIVATE UAE_M68K_EMBED)
