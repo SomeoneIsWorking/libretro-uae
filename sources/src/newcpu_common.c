@@ -8,8 +8,10 @@
 #include "options.h"
 #include "memory.h"
 #include "newcpu.h"
+#ifndef CPUEMU_68000_ONLY
 #include "cpummu.h"
 #include "cpummu030.h"
+#endif
 #include "cpu_prefetch.h"
 
 int get_cpu_model(void)
@@ -17,6 +19,7 @@ int get_cpu_model(void)
 	return currprefs.cpu_model;
 }
 
+#ifndef CPUEMU_68000_ONLY
 void val_move2c2 (int regno, uae_u32 val)
 {
 	switch (regno) {
@@ -65,8 +68,6 @@ uae_u32 val_move2c (int regno)
 	default: return 0;
 	}
 }
-
-#ifndef CPUEMU_68000_ONLY
 
 int movec_illg (int regno)
 {
@@ -250,9 +251,6 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 #endif
 	return 1;
 }
-
-#endif
-
 
 /*
 * extract bitfield data from memory and return it in the MSBs
@@ -639,7 +637,7 @@ uae_u32 REGPARAM2 x_get_disp_ea_040(uae_u32 base, int idx)
 }
 
 #endif
-
+#endif /* CPUEMU_68000_ONLY */
 
 int getMulu68kCycles(uae_u16 src)
 {
@@ -1393,6 +1391,9 @@ int m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 
 #endif
 
+#ifndef UAE_M68K_EMBED
+/* Full-machine exception frames and MMU rollback use device accessors. The
+ * callback-driven embedded core owns its bounded exception entry separately. */
 uae_u32 exception_pc(int nr)
 {
 	// bus error, address error, illegal instruction, privilege violation, a-line, f-line
@@ -1671,6 +1672,8 @@ void cpu_restore_fixup(void)
 		mmufixup[1].reg = -1;
 	}
 }
+
+#endif
 
 // Low word: Clear + Z and N
 void ccr_68000_long_move_ae_LZN(uae_s32 src)

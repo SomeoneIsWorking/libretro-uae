@@ -66,9 +66,32 @@ if(PUAE_M68K_EMBED_BUILD_TESTS)
     target_compile_definitions(uae_m68k_embed_test PRIVATE UAE UAE_M68K_EMBED __LIBRETRO__)
     target_link_libraries(uae_m68k_embed_test PRIVATE PUAE::M68kEmbed)
     add_test(NAME uae_m68k_embed_test COMMAND uae_m68k_embed_test)
-    add_executable(uae_m68k_link_sections_test tests/link_sections_test.c)
-    target_link_libraries(uae_m68k_link_sections_test PRIVATE uae_m68k_embed_sections)
-    add_test(NAME uae_m68k_link_sections_test COMMAND uae_m68k_link_sections_test)
+    # Link the same runtime archive without its section-GC usage requirements.
+    # Every selected source object must have a complete set of owned symbols.
+    add_executable(uae_m68k_complete_link_test tests/m68k_embed_test.c)
+    target_compile_definitions(uae_m68k_complete_link_test PRIVATE
+        UAE UAE_M68K_EMBED __LIBRETRO__)
+    target_include_directories(uae_m68k_complete_link_test SYSTEM PRIVATE
+        ../sources/src/include)
+    target_link_libraries(uae_m68k_complete_link_test PRIVATE
+        "$<TARGET_LINKER_FILE:uae_m68k_embed>")
+    add_dependencies(uae_m68k_complete_link_test uae_m68k_embed)
+    add_test(NAME uae_m68k_complete_link_test COMMAND uae_m68k_complete_link_test)
+    # Undefined device references must fail independently of dead-section removal.
+    # COFF resolves them before /OPT:REF; ELF may discard them, so this negative
+    # intentionally has no per-function section policy on either host.
+    try_compile(PUAE_UNOWNED_DEVICE_LINKED
+        "${CMAKE_CURRENT_BINARY_DIR}/unowned-device-check"
+        SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/link_sections_test.c"
+        OUTPUT_VARIABLE PUAE_UNOWNED_DEVICE_LINK_OUTPUT)
+    if(PUAE_UNOWNED_DEVICE_LINKED)
+        message(FATAL_ERROR "Embedded link check accepted an unowned device reference")
+    endif()
+    if(NOT PUAE_UNOWNED_DEVICE_LINK_OUTPUT MATCHES "unavailable_device_owner")
+        message(FATAL_ERROR
+            "Embedded negative link check failed for an unrelated reason: "
+            "${PUAE_UNOWNED_DEVICE_LINK_OUTPUT}")
+    endif()
     foreach(profile IN ITEMS native windows)
         add_executable(uae_m68k_sysconfig_${profile}_test tests/sysconfig_test.c)
         target_compile_definitions(uae_m68k_sysconfig_${profile}_test PRIVATE UAE_M68K_EMBED)
