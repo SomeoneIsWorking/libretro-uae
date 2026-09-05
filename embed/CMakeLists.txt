@@ -32,7 +32,9 @@ endif()
 if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
     target_compile_options(uae_m68k_embed PRIVATE -Wno-comment)
 endif()
-target_include_directories(uae_m68k_embed
+target_include_directories(uae_m68k_embed BEFORE PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(uae_m68k_embed SYSTEM
     PUBLIC ../sources/src/include
     PRIVATE
         ../sources/src
@@ -56,7 +58,7 @@ set_target_properties(uae_m68k_embed PROPERTIES
 if(PUAE_M68K_EMBED_BUILD_TESTS)
     enable_testing()
     add_executable(uae_m68k_embed_test tests/m68k_embed_test.c)
-    target_compile_definitions(uae_m68k_embed_test PRIVATE UAE __LIBRETRO__)
+    target_compile_definitions(uae_m68k_embed_test PRIVATE UAE UAE_M68K_EMBED __LIBRETRO__)
     target_link_libraries(uae_m68k_embed_test PRIVATE PUAE::M68kEmbed)
     add_test(NAME uae_m68k_embed_test COMMAND uae_m68k_embed_test)
 endif()
