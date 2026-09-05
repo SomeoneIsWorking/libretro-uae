@@ -165,7 +165,9 @@ using namespace std;
 
 #ifndef __STDC__
 #  ifdef _MSC_VER
+#    ifndef UAE_M68K_EMBED
 #    error "M$ is no longer supported. Use WinUAE instead, it's great!"
+#    endif
 #  else
 #error "Your compiler is not ANSI. Get a real one."
 #endif
