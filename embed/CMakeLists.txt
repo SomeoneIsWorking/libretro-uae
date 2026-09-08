@@ -27,11 +27,19 @@ else()
     target_compile_options(uae_m68k_embed_sections INTERFACE
         -ffunction-sections -fdata-sections)
 endif()
-target_link_options(uae_m68k_embed_sections INTERFACE
-    $<$<OR:$<PLATFORM_ID:Linux>,$<PLATFORM_ID:Android>>:-Wl,--gc-sections>
-    $<$<PLATFORM_ID:Darwin>:-Wl,-dead_strip>
-    $<$<PLATFORM_ID:Windows>:/OPT:REF>
-    $<$<PLATFORM_ID:Windows>:/INCREMENTAL:NO>)
+if(MSVC)
+    target_link_options(uae_m68k_embed_sections INTERFACE
+        /OPT:REF
+        /INCREMENTAL:NO)
+elseif(WIN32)
+    target_link_options(uae_m68k_embed_sections INTERFACE
+        -Wl,--gc-sections)
+elseif(UNIX)
+    target_link_options(uae_m68k_embed_sections INTERFACE
+        $<$<PLATFORM_ID:Linux>:-Wl,--gc-sections>
+        $<$<PLATFORM_ID:Android>:-Wl,--gc-sections>
+        $<$<PLATFORM_ID:Darwin>:-Wl,-dead_strip>)
+endif()
 target_link_libraries(uae_m68k_embed PRIVATE uae_m68k_embed_sections)
 
 target_compile_features(uae_m68k_embed PRIVATE c_std_11)
