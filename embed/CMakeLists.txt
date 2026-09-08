@@ -38,6 +38,12 @@ target_compile_features(uae_m68k_embed PRIVATE c_std_11)
 target_compile_definitions(uae_m68k_embed PRIVATE
     __LIBRETRO__
     UAE_M68K_EMBED)
+if(WIN32 AND NOT MSVC)
+    # MinGW defines _WIN32 but not the legacy WIN32 macro used by retrodep's
+    # CRT compatibility branch.  Keep the native _fseeki64/_ftelli64 names;
+    # mapping them to POSIX fseeko64/ftello64 redeclares MinGW's CRT helpers.
+    target_compile_definitions(uae_m68k_embed PRIVATE WIN32)
+endif()
 if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
     target_compile_options(uae_m68k_embed PRIVATE -Wno-comment)
 endif()
