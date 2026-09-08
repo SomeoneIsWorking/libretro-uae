@@ -609,10 +609,10 @@
 #undef HANDLE
 #define HANDLE FILE*
 #endif
-#ifndef _fseeki64
+#if !defined(_WIN32) && !defined(_fseeki64)
 #define _fseeki64 fseeko64
 #endif
-#ifndef _ftelli64
+#if !defined(_WIN32) && !defined(_ftelli64)
 #define _ftelli64 ftello64
 #endif
 #endif /* USE_LIBRETRO_VFS */
