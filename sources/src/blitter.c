@@ -936,6 +936,7 @@ static void actually_do_blit (void)
 			blt_info.vblitsize--;
 		} while (blt_info.vblitsize != 0);
 	} else {
+#ifdef HARNESS_BUILD
 		/* Benefactor harness: full per-blit trace (env BLIT_TRACE_ALL=1) →
 		 * logs/puae_blit_trace.txt, matched against the PC side to find the
 		 * first diverging blit (carry-in / output checksum). */
@@ -953,12 +954,14 @@ static void actually_do_blit (void)
 		uae_u16 bta_carry = blt_info.bltaold;
 		int bta_w = blt_info.hblitsize, bta_h = blt_info.vblitsize;
 		int bta_dmod = blt_info.bltdmod;
+#endif /* HARNESS_BUILD */
 
 		if (blitdesc)
 			blitter_dofast_desc();
 		else
 			blitter_dofast();
 
+#ifdef HARNESS_BUILD
 		if (bta_en && bta_f) {
 			extern int g_harness_compared_frame;
 			uae_u32 ck = 0;
@@ -982,6 +985,7 @@ static void actually_do_blit (void)
 				blt_info.bltafwm, blt_info.bltalwm,
 				bta_carry, ck);
 		}
+#endif /* HARNESS_BUILD */
 	}
 	blt_info.blit_main = 0;
 }

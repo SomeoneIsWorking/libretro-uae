@@ -6563,6 +6563,7 @@ static void m68k_run_2_000(void)
 	}
 }
 
+#ifdef HARNESS_BUILD
 /* Benefactor harness: env-gated M68K instruction tracer.
  * BENEFACTOR_M68K_TRACE=1 logs PC+regs for instructions in a target range
  * (default $5500-$6100, override BENEFACTOR_M68K_RANGE=lo-hi hex) to
@@ -6631,6 +6632,7 @@ static void benefactor_watch_10ac(struct regstruct *r)
 		last = v;
 	}
 }
+#endif /* HARNESS_BUILD */
 
 static void m68k_run_2_020(void)
 {
@@ -6649,6 +6651,7 @@ static void m68k_run_2_020(void)
 		TRY(prb) {
 			while (!exit) {
 				r->instruction_pc = m68k_getpc();
+#ifdef HARNESS_BUILD
 				benefactor_insn_trace(r);
 				benefactor_watch_10ac(r);
 
@@ -6662,6 +6665,7 @@ static void m68k_run_2_020(void)
 						break;
 					}
 				}
+#endif /* HARNESS_BUILD */
 
 				r->opcode = x_get_iword(0);
 				count_instr(r->opcode);
