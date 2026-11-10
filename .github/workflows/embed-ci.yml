@@ -1,8 +1,6 @@
 name: 68000 Embed CI
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 permissions:
